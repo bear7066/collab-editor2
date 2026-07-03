@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Calendar, Github } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Plus, Search, Calendar, Github, FileText, KanbanSquare } from 'lucide-react';
 
 interface Project {
   name: string;
@@ -8,43 +8,51 @@ interface Project {
   updated_at: string;
 }
 
+interface Board {
+  name: string;
+  updated_at: string;
+}
+
+type DashboardTab = 'projects' | 'boards';
+
 const REPO_URL = 'https://github.com/GNITOAHC/collab-editor';
 
 export const Dashboard: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [boards, setBoards] = useState<Board[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [newProjectName, setNewProjectName] = useState('');
+  const [newItemName, setNewItemName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab: DashboardTab = searchParams.get('tab') === 'boards' ? 'boards' : 'projects';
 
   useEffect(() => {
-    fetchProjects();
+    fetchAll();
   }, []);
 
-  const fetchProjects = async () => {
+  const fetchAll = async () => {
     try {
-      const res = await fetch('/api/projects');
-      if (res.ok) {
-        const data = await res.json();
-        setProjects(data);
-      }
+      const [projectsRes, boardsRes] = await Promise.all([fetch('/api/projects'), fetch('/api/boards')]);
+      if (projectsRes.ok) setProjects(await projectsRes.json());
+      if (boardsRes.ok) setBoards(await boardsRes.json());
     } catch (err) {
-      console.error('Error fetching projects:', err);
+      console.error('Error fetching projects and boards:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCreateProject = (e: React.FormEvent) => {
+  const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanName = newProjectName.trim().replace(/\s+/g, '-').toLowerCase();
+    const cleanName = newItemName.trim().replace(/\s+/g, '-').toLowerCase();
     if (!cleanName) return;
-    navigate(`/project/${cleanName}`);
+    navigate(activeTab === 'projects' ? `/project/${cleanName}` : `/board/${cleanName}`);
   };
 
-  const filteredProjects = projects.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const label = activeTab === 'projects' ? 'project' : 'board';
+  const items: { name: string; updated_at: string }[] = activeTab === 'projects' ? projects : boards;
+  const filteredItems = items.filter((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div className="min-h-screen flex flex-col px-6 py-10 max-w-3xl mx-auto text-slate-100">
@@ -65,13 +73,37 @@ export const Dashboard: React.FC = () => {
         </a>
       </header>
 
+      {/* Tabs */}
+      <nav className="flex items-end gap-1 border-b border-slate-800 mb-8">
+        {(
+          [
+            { tab: 'projects' as const, name: 'Projects', icon: <FileText size={15} /> },
+            { tab: 'boards' as const, name: 'Boards', icon: <KanbanSquare size={15} /> },
+          ]
+        ).map(({ tab, name, icon }) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setSearchParams({ tab })}
+            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition cursor-pointer ${
+              activeTab === tab
+                ? 'border-indigo-500 text-white'
+                : 'border-transparent text-slate-500 hover:text-slate-200'
+            }`}
+          >
+            {icon}
+            {name}
+          </button>
+        ))}
+      </nav>
+
       {/* Create */}
-      <form onSubmit={handleCreateProject} className="flex gap-2 mb-8">
+      <form onSubmit={handleCreate} className="flex gap-2 mb-8">
         <input
           type="text"
-          placeholder="New project name…"
-          value={newProjectName}
-          onChange={(e) => setNewProjectName(e.target.value)}
+          placeholder={`New ${label} name…`}
+          value={newItemName}
+          onChange={(e) => setNewItemName(e.target.value)}
           className="flex-1 bg-slate-950/50 border border-slate-800 rounded-lg py-2.5 px-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
           required
         />
@@ -89,34 +121,34 @@ export const Dashboard: React.FC = () => {
         <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
         <input
           type="text"
-          placeholder="Search projects"
+          placeholder={`Search ${label}s`}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full bg-transparent border border-slate-800/80 rounded-lg py-2 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
         />
       </div>
 
-      {/* Projects */}
+      {/* Projects / Boards */}
       {isLoading ? (
         <div className="text-center py-8 text-slate-500 text-sm">Loading…</div>
-      ) : filteredProjects.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <div className="text-center py-8 text-slate-500 text-sm">
-          {searchQuery ? 'No matches.' : 'No projects yet.'}
+          {searchQuery ? 'No matches.' : `No ${label}s yet.`}
         </div>
       ) : (
         <ul className="divide-y divide-slate-800/60">
-          {filteredProjects.map((project) => (
+          {filteredItems.map((item) => (
             <li
-              key={project.name}
-              onClick={() => navigate(`/project/${project.name}`)}
+              key={item.name}
+              onClick={() => navigate(`/${label}/${item.name}`)}
               className="py-3 px-2 -mx-2 rounded-lg cursor-pointer hover:bg-slate-900/40 transition flex items-center justify-between group"
             >
               <span className="font-medium text-slate-200 group-hover:text-indigo-300 transition truncate">
-                {project.name}
+                {item.name}
               </span>
               <span className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0 ml-4">
                 <Calendar size={12} />
-                {new Date(project.updated_at).toLocaleDateString()}
+                {new Date(item.updated_at).toLocaleDateString()}
               </span>
             </li>
           ))}

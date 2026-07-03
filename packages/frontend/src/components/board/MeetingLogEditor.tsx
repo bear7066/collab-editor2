@@ -1,0 +1,68 @@
+import React, { useEffect, useRef } from 'react';
+import { Crepe } from '@milkdown/crepe';
+import { Milkdown, useEditor } from '@milkdown/react';
+import { collab, collabServiceCtx } from '@milkdown/plugin-collab';
+import type * as Y from 'yjs';
+import type { WebsocketProvider } from 'y-websocket';
+
+import '@milkdown/crepe/theme/common/style.css';
+import '@milkdown/crepe/theme/frame-dark.css';
+
+interface MeetingLogEditorProps {
+  /** Shared ProseMirror fragment holding the current section's notes. */
+  fragment: Y.XmlFragment;
+  /** Board room provider; its awareness renders the remote cursors. */
+  provider: WebsocketProvider;
+}
+
+export const MeetingLogEditor: React.FC<MeetingLogEditorProps> = ({ fragment, provider }) => {
+  const crepeRef = useRef<Crepe | null>(null);
+
+  const { loading } = useEditor(
+    (root) => {
+      const crepe = new Crepe({
+        root,
+        defaultValue: '',
+        features: {
+          // @ts-expect-error CrepeFeature keys vary across bundled versions.
+          sourceEditor: false,
+        },
+      });
+
+      crepe.editor.use(collab);
+      crepeRef.current = crepe;
+      return crepe;
+    },
+    [fragment, provider]
+  );
+
+  // The collab service binds its ctx only after the editor view exists, so
+  // connecting during `.config()` would throw and leave the editor dead.
+  // Connect once creation and the provider's initial sync are both done.
+  useEffect(() => {
+    if (loading) return undefined;
+    const crepe = crepeRef.current;
+    if (!crepe) return undefined;
+
+    const connectCollab = (isSynced: boolean) => {
+      if (!isSynced) return;
+      crepe.editor.action((ctx) => {
+        // Binding the section's fragment (rather than a whole doc) lets every
+        // section share the board room, so one awareness carries all cursors.
+        ctx.get(collabServiceCtx).bindXmlFragment(fragment).setAwareness(provider.awareness).connect();
+      });
+    };
+
+    if (provider.synced) connectCollab(true);
+    else provider.on('sync', connectCollab);
+    return () => provider.off('sync', connectCollab);
+  }, [loading, fragment, provider]);
+
+  return (
+    <div className="board-meeting-log h-80 overflow-y-auto rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 transition focus-within:border-indigo-400">
+      <Milkdown />
+    </div>
+  );
+};
+
+export default MeetingLogEditor;

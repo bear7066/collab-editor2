@@ -8,6 +8,7 @@ import { WebsocketProvider } from 'y-websocket';
 import { MilkdownProvider } from '@milkdown/react';
 import MilkdownEditor, { MilkdownEditorRef } from './MilkdownEditor';
 import MarkdownEditor from './MarkdownEditor';
+import { randomPresenceUser } from '../lib/presence';
 
 type EditorMode = 'wysiwyg' | 'markdown';
 
@@ -55,12 +56,7 @@ export const EditorContainer: React.FC = () => {
       setConnectionStatus(event.status);
     });
 
-    const NAMES = ['Luna', 'Nova', 'Astra', 'Orion', 'Leo', 'Cygnus', 'Vesper', 'Sol', 'Draco', 'Lyra'];
-    const COLORS = ['#6366f1', '#8b5cf6', '#d946ef', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#14b8a6', '#06b6d4', '#f43f5e'];
-    provider.awareness.setLocalStateField('user', {
-      name: NAMES[Math.floor(Math.random() * NAMES.length)],
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
-    });
+    provider.awareness.setLocalStateField('user', randomPresenceUser());
 
     const handleAwarenessChange = () => {
       const users: { name: string; color: string }[] = [];
@@ -205,7 +201,7 @@ export const EditorContainer: React.FC = () => {
           {/* Left: back + project info */}
           <div className="flex items-center gap-3 min-w-0">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/?tab=projects')}
               className="shrink-0 p-2 bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition cursor-pointer"
             >
               <ArrowLeft size={16} />

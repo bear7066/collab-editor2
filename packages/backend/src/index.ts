@@ -5,8 +5,8 @@ import cors from 'cors';
 import path from 'path';
 import * as Y from 'yjs';
 import { setupWSConnection, setPersistence } from './yjs-utils.js';
-import { Database } from 'bun:sqlite';
 import { assets } from './frontend-assets.js';
+import { boardNameFromRoom, isBoardRoom } from './board-doc.js';
 
 const DEFAULT_PORT = 3001;
 
@@ -71,54 +71,43 @@ if (hasHelpArg(argv)) {
 
 const PORT = parsePortArg(argv) ?? parsePort(process.env.PORT, 'PORT') ?? DEFAULT_PORT;
 
-const db = new Database('collab.sqlite');
-db.run(`
-  CREATE TABLE IF NOT EXISTS projects (
-    name TEXT PRIMARY KEY,
-    ydoc BLOB,
-    markdown TEXT DEFAULT '',
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+// Importing the domain modules opens the SQLite database and creates their
+// tables, so load them only after `--help` and port validation have passed.
+const [
+  { bindProjectDoc, projectsRouter, saveProjectToDb },
+  { bindBoardDoc, boardsRouter, saveBoardToDb },
+] = await Promise.all([import('./projects.js'), import('./boards.js')]);
 
-console.log('SQLite database initialized successfully.');
-
+// Yjs persistence: project rooms live in the projects table, board rooms
+// (named `board/<name>`) in the boards table.
 const saveDebounceTimers = new Map<string, Timer>();
 
-function saveStateToDb(docName: string, ydoc: Y.Doc) {
-  const state = Y.encodeStateAsUpdate(ydoc);
-  db.prepare(`
-    INSERT INTO projects (name, ydoc, updated_at)
-    VALUES (?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(name) DO UPDATE SET
-      ydoc = excluded.ydoc,
-      updated_at = CURRENT_TIMESTAMP
-  `).run(docName, Buffer.from(state));
-  console.log(`[Database] Saved binary state for project "${docName}". Size: ${state.byteLength} bytes.`);
+function bindDocToDb(docName: string, ydoc: Y.Doc) {
+  if (isBoardRoom(docName)) {
+    bindBoardDoc(boardNameFromRoom(docName), ydoc);
+  } else {
+    bindProjectDoc(docName, ydoc);
+  }
+}
+
+function saveDocToDb(docName: string, ydoc: Y.Doc) {
+  if (isBoardRoom(docName)) {
+    saveBoardToDb(boardNameFromRoom(docName), ydoc);
+  } else {
+    saveProjectToDb(docName, ydoc);
+  }
 }
 
 setPersistence({
   bindState: async (docName: string, ydoc: Y.Doc) => {
     console.log(`[Yjs Persistence] Binding state for room: ${docName}`);
-    const row = db.prepare('SELECT ydoc FROM projects WHERE name = ?').get(docName) as { ydoc: Buffer } | undefined;
-
-    if (row && row.ydoc) {
-      Y.applyUpdate(ydoc, new Uint8Array(row.ydoc));
-      console.log(`[Yjs Persistence] Loaded existing state for project "${docName}"`);
-    } else {
-      console.log(`[Yjs Persistence] No existing state found for project "${docName}". Starting fresh.`);
-      db.prepare(`
-        INSERT INTO projects (name, markdown, updated_at)
-        VALUES (?, '', CURRENT_TIMESTAMP)
-        ON CONFLICT(name) DO NOTHING
-      `).run(docName);
-    }
+    bindDocToDb(docName, ydoc);
 
     ydoc.on('update', () => {
       const existing = saveDebounceTimers.get(docName);
       if (existing) clearTimeout(existing);
       const timer = setTimeout(() => {
-        saveStateToDb(docName, ydoc);
+        saveDocToDb(docName, ydoc);
         saveDebounceTimers.delete(docName);
       }, 2000);
       saveDebounceTimers.set(docName, timer);
@@ -132,7 +121,7 @@ setPersistence({
       clearTimeout(existing);
       saveDebounceTimers.delete(docName);
     }
-    saveStateToDb(docName, ydoc);
+    saveDocToDb(docName, ydoc);
   },
 });
 
@@ -181,56 +170,8 @@ const staticPath = path.join(import.meta.dir, '../../frontend/dist');
 app.use(express.static(staticPath));
 
 // REST API
-app.get('/api/projects', (_req, res) => {
-  try {
-    const rows = db.prepare('SELECT name, markdown, updated_at FROM projects ORDER BY updated_at DESC').all();
-    res.json(rows);
-  } catch (error) {
-    console.error('Error fetching projects:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/project/:name', (req, res) => {
-  const { name } = req.params;
-  try {
-    let row = db.prepare('SELECT name, markdown, updated_at FROM projects WHERE name = ?').get(name) as any;
-    if (!row) {
-      db.prepare(`
-        INSERT INTO projects (name, markdown, updated_at)
-        VALUES (?, '', CURRENT_TIMESTAMP)
-      `).run(name);
-      row = { name, markdown: '', updated_at: new Date().toISOString() };
-      console.log(`[Database] Created new project entry: ${name}`);
-    }
-    res.json(row);
-  } catch (error) {
-    console.error(`Error fetching project ${name}:`, error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.put('/api/project/:name', (req, res) => {
-  const { name } = req.params;
-  const { markdown } = req.body;
-  if (markdown === undefined) {
-    return res.status(400).json({ error: 'Missing markdown field' });
-  }
-  try {
-    db.prepare(`
-      INSERT INTO projects (name, markdown, updated_at)
-      VALUES (?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(name) DO UPDATE SET
-        markdown = excluded.markdown,
-        updated_at = CURRENT_TIMESTAMP
-    `).run(name, markdown);
-    console.log(`[Database] Updated plain markdown for project "${name}" (${markdown.length} chars).`);
-    res.json({ success: true });
-  } catch (error) {
-    console.error(`Error updating markdown for project ${name}:`, error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+app.use('/api', projectsRouter);
+app.use('/api', boardsRouter);
 
 // SPA fallback in local development mode
 app.get('*', (req, res, next) => {

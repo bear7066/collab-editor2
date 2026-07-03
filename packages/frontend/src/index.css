@@ -293,6 +293,24 @@ body {
   display: none !important;
 }
 
+.board-meeting-log .milkdown {
+  height: 100%;
+}
+
+.board-meeting-log .ProseMirror {
+  min-height: 17rem;
+  padding: 0 !important;
+  outline: none;
+}
+
+.board-meeting-log .ProseMirror p:first-child {
+  margin-top: 0;
+}
+
+.board-meeting-log .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
