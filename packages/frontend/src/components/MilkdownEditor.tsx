@@ -8,7 +8,7 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 
 import '@milkdown/crepe/theme/common/style.css';
-import '@milkdown/crepe/theme/frame-dark.css';
+import '@milkdown/crepe/theme/frame.css';
 
 interface MilkdownEditorProps {
   doc: Y.Doc;
@@ -79,7 +79,7 @@ export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>
     }), []);
 
     return (
-      // No overflow-y-auto here — let the parent glass card be the scroll container.
+      // No overflow-y-auto here — let the parent card be the scroll container.
       // This ensures ProseMirror's posAtCoords() uses a single scroll origin.
       <div className="w-full h-full">
         <Milkdown />

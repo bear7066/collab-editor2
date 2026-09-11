@@ -5,7 +5,8 @@ export interface PresenceUser {
 }
 
 const NAMES = ['Luna', 'Nova', 'Astra', 'Orion', 'Leo', 'Cygnus', 'Vesper', 'Sol', 'Draco', 'Lyra'];
-const COLORS = ['#6366f1', '#8b5cf6', '#d946ef', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#14b8a6', '#06b6d4', '#f43f5e'];
+// Muted zen tones, dark enough to carry the white name label on cursors.
+const COLORS = ['#557a5c', '#4f6f8f', '#b4622a', '#a95b45', '#4e7c7a', '#8b6f4e', '#5d6b8a', '#7c7f3e', '#6e5f7a', '#3f6650'];
 
 /** Pick a random display name and color for this session's awareness state. */
 export const randomPresenceUser = (): PresenceUser => ({

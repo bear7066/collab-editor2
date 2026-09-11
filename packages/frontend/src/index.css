@@ -1,12 +1,46 @@
 @import "tailwindcss";
 
+/*
+ * Zen palette — washi paper, ink, moss, aizome blue, persimmon.
+ * Components use these tokens (bg-paper, text-ink, bg-moss…) instead of raw
+ * Tailwind colours, so the whole look is tuned from this one block.
+ */
+@theme {
+  --color-paper:        #f4f1ea;   /* page background            */
+  --color-surface:      #fbfaf6;   /* cards, inputs, panels      */
+  --color-sunken:       #ece8df;   /* hover wash, recessed areas */
+  --color-line:         #e3ded3;   /* hairline borders           */
+  --color-line-strong:  #cfc9bc;   /* input borders, dividers    */
+
+  --color-ink:          #2f3431;   /* primary text               */
+  --color-ink-soft:     #545955;   /* secondary text             */
+  --color-stone:        #737771;   /* muted text, icons          */
+  --color-stone-light:  #a3a59e;   /* placeholders, decoration   */
+
+  --color-moss:         #6b8f71;   /* primary accent             */
+  --color-moss-deep:    #557a5c;   /* filled buttons, accent text */
+  --color-moss-soft:    #e4ebe3;
+
+  --color-ai:           #4f6f8f;   /* links, focus               */
+  --color-ai-soft:      #e3e9ef;
+
+  --color-kaki:         #d0783b;   /* stars, warnings            */
+  --color-kaki-deep:    #b4622a;
+  --color-kaki-soft:    #f6e6d8;
+
+  --color-shu:          #a95b45;   /* destructive                */
+  --color-shu-soft:     #f3e3dd;
+
+  --font-serif: 'Noto Serif TC', 'Songti TC', Georgia, serif;
+}
+
 :root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: dark;
-  color: #e2e8f0;
-  background-color: #0f172a;
+  color-scheme: light;
+  color: var(--color-ink);
+  background-color: var(--color-paper);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -17,46 +51,9 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  background-color: #05070f;
-  background-image:
-    radial-gradient(circle at 80% 10%, rgba(99, 102, 241, 0.15) 0%, transparent 45%),
-    radial-gradient(circle at 10% 90%, rgba(168, 85, 247, 0.1) 0%, transparent 45%),
-    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+  background-color: var(--color-paper);
   overflow-y: auto;
   overflow-x: hidden;
-}
-
-/* Glowing background orb */
-.glow-orb {
-  position: absolute;
-  width: 500px;
-  height: 500px;
-  border-radius: 9999px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
-  filter: blur(60px);
-  pointer-events: none;
-  z-index: -10;
-}
-
-/* Glassmorphism utilities */
-.glass {
-  background: rgba(10, 14, 26, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
-}
-
-.glass-hover {
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.glass-hover:hover {
-  background: rgba(15, 22, 40, 0.9);
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(99, 102, 241, 0.12);
-  transform: translateY(-3px);
 }
 
 /* Custom scrollbars */
@@ -65,14 +62,14 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(13, 18, 33, 0.4);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(47, 52, 49, 0.14);
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(47, 52, 49, 0.26);
 }
 
 /* Yjs Collaborative Cursor Styling */
@@ -101,7 +98,7 @@ body {
   border-radius: 4px;
   border-bottom-left-radius: 0;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 6px rgba(47, 52, 49, 0.18);
   z-index: 50;
   pointer-events: none;
 }
@@ -109,7 +106,7 @@ body {
 /* ── Milkdown / Crepe theming ─────────────────────────────────────────────── */
 
 /*
- * Override the frame-dark CSS variables to match our indigo/slate colour scheme.
+ * Override the light frame theme's CSS variables with the zen palette.
  * These are evaluated after the theme import so they win without !important.
  * Every Milkdown component (toolbar, slash menu, code blocks, selections…)
  * derives its colours from these variables.
@@ -117,31 +114,31 @@ body {
 .milkdown {
   /* Colours */
   --crepe-color-background:         transparent;
-  --crepe-color-on-background:      #e2e8f0;   /* slate-200  – body text      */
-  --crepe-color-surface:            #475569;   /* slate-600  – toolbar / menus */
-  --crepe-color-surface-low:        #334155;   /* slate-700  – deeper surface  */
-  --crepe-color-on-surface:         #ffffff;   /* white                        */
-  --crepe-color-on-surface-variant: #e2e8f0;   /* slate-200  – toolbar icons   */
-  --crepe-color-outline:            rgba(255, 255, 255, 0.18);
-  --crepe-color-primary:            #818cf8;   /* indigo-400 – links / accents */
-  --crepe-color-secondary:          #475569;   /* slate-600                    */
-  --crepe-color-on-secondary:       #f8fafc;
-  --crepe-color-inverse:            #e2e8f0;
-  --crepe-color-on-inverse:         #0f172a;
-  --crepe-color-inline-code:        #c084fc;   /* purple-400                   */
-  --crepe-color-error:              #f87171;   /* red-400                      */
-  --crepe-color-hover:              rgba(255, 255, 255, 0.08);
-  --crepe-color-selected:           rgba(99, 102, 241, 0.22); /* indigo tint  */
-  --crepe-color-inline-area:        #334155;   /* slate-700  – inline code bg  */
+  --crepe-color-on-background:      var(--color-ink);
+  --crepe-color-surface:            var(--color-surface);   /* toolbar / menus */
+  --crepe-color-surface-low:        var(--color-sunken);    /* deeper surface  */
+  --crepe-color-on-surface:         var(--color-ink);
+  --crepe-color-on-surface-variant: var(--color-ink-soft);  /* toolbar icons   */
+  --crepe-color-outline:            var(--color-line-strong);
+  --crepe-color-primary:            var(--color-ai);        /* links / accents */
+  --crepe-color-secondary:          var(--color-line);
+  --crepe-color-on-secondary:       var(--color-ink);
+  --crepe-color-inverse:            var(--color-ink);
+  --crepe-color-on-inverse:         var(--color-surface);
+  --crepe-color-inline-code:        var(--color-shu);
+  --crepe-color-error:              var(--color-shu);
+  --crepe-color-hover:              rgba(47, 52, 49, 0.06);
+  --crepe-color-selected:           rgba(107, 143, 113, 0.22); /* moss tint   */
+  --crepe-color-inline-area:        var(--color-sunken);    /* inline code bg  */
 
   /* Fonts */
-  --crepe-font-title:   'Inter', system-ui, sans-serif;
+  --crepe-font-title:   var(--font-serif);
   --crepe-font-default: 'Inter', system-ui, sans-serif;
   --crepe-font-code:    'Fira Code', ui-monospace, monospace;
 
   /* Shadows */
-  --crepe-shadow-1: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.12);
-  --crepe-shadow-2: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  --crepe-shadow-1: 0 2px 10px rgba(47, 52, 49, 0.08), 0 0 0 1px var(--color-line);
+  --crepe-shadow-2: 0 6px 20px rgba(47, 52, 49, 0.10), 0 0 0 1px var(--color-line);
 
   height: 100%;
 }
@@ -168,16 +165,22 @@ body {
   min-height: 100%;
   cursor: text;
   overflow-anchor: none;
-  caret-color: #ffffff;
+  caret-color: var(--color-ink);
 }
 
 /* Heading colours – ProseMirror headings inherit body colour by default */
-.milkdown .ProseMirror h1 { color: #ffffff;  font-weight: 700; letter-spacing: -0.02em; }
-.milkdown .ProseMirror h2 { color: #f8fafc;  font-weight: 700; }
-.milkdown .ProseMirror h3 { color: #f1f5f9;  font-weight: 600; }
+.milkdown .ProseMirror h1,
+.milkdown .ProseMirror h2,
+.milkdown .ProseMirror h3,
 .milkdown .ProseMirror h4,
 .milkdown .ProseMirror h5,
-.milkdown .ProseMirror h6 { color: #e2e8f0;  font-weight: 600; }
+.milkdown .ProseMirror h6 { color: var(--color-ink); font-family: var(--font-serif); }
+.milkdown .ProseMirror h1 { font-weight: 700; letter-spacing: -0.01em; }
+.milkdown .ProseMirror h2 { font-weight: 700; }
+.milkdown .ProseMirror h3,
+.milkdown .ProseMirror h4,
+.milkdown .ProseMirror h5,
+.milkdown .ProseMirror h6 { font-weight: 600; }
 
 /* Paragraph / list body text */
 .milkdown .ProseMirror p,
@@ -200,37 +203,36 @@ body {
 
 /*
  * Milkdown Crepe renders list bullets/numbers via a custom .label-wrapper div
- * (not native ::marker), and colours it with --crepe-color-outline which we
- * have set to rgba(255,255,255,0.1) for border use — making markers invisible.
- * Override the label-wrapper directly.
+ * (not native ::marker), and colours it with --crepe-color-outline, which is
+ * tuned for borders. Override the label-wrapper directly.
  */
 .milkdown .milkdown-list-item-block li .label-wrapper {
-  color: #e2e8f0 !important;   /* indigo-400 */
+  color: var(--color-stone) !important;
 }
 .milkdown .milkdown-list-item-block li .label-wrapper svg {
-  fill: #e2e8f0 !important;
+  fill: var(--color-stone) !important;
 }
 
-/* Blockquote: swap the generic selected-colour border for indigo */
+/* Blockquote: moss rule on a faint moss wash */
 .milkdown .ProseMirror blockquote::before {
-  background: rgba(99, 102, 241, 0.5) !important;
+  background: var(--color-moss) !important;
 }
 .milkdown .ProseMirror blockquote {
-  color: #94a3b8;
-  background: rgba(99, 102, 241, 0.04);
+  color: var(--color-ink-soft);
+  background: rgba(107, 143, 113, 0.06);
   border-radius: 0 6px 6px 0;
 }
 
-/* Code blocks: add a visible border so they stand out from the dark bg */
+/* Code blocks: hairline border so they sit quietly on the paper */
 .milkdown .milkdown-code-block {
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid var(--color-line) !important;
   border-radius: 10px !important;
 }
 
 /* Drop-cursor indicator: the default colour (derived from --crepe-color-outline)
-   becomes near-invisible with our dark scheme — override to indigo accent. */
+   is too faint — override to the aizome accent. */
 .milkdown .crepe-drop-cursor {
-  background-color: #818cf8 !important;
+  background-color: var(--color-ai) !important;
   opacity: 0.9 !important;
 }
 
@@ -240,19 +242,19 @@ body {
  * Crepe renders icons inside `.toolbar-item`. We use broad selectors + !important
  * because SVGs often carry inline fill/stroke attributes that win over plain CSS.
  *
- * Inactive   →  bright slate-100 icon, no background  (clearly visible)
- * Hover      →  white icon on subtle white wash       (interactive feedback)
- * Triggered  →  white icon on indigo pill             (color-coded "on" state)
+ * Inactive   →  soft ink icon, no background
+ * Hover      →  ink icon on a faint ink wash
+ * Triggered  →  aizome icon on an aizome-tinted pill
  */
 .milkdown .toolbar-item,
 .milkdown-toolbar > * {
-  color: #f1f5f9 !important;
+  color: var(--color-ink-soft) !important;
   border-radius: 6px;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 .milkdown .toolbar-item svg,
 .milkdown-toolbar svg {
-  color: #f1f5f9 !important;
+  color: var(--color-ink-soft) !important;
   fill: currentColor !important;
 }
 
@@ -260,28 +262,28 @@ body {
 .milkdown .operation-item:hover,
 .milkdown .toolbar-item:hover,
 .milkdown-toolbar > *:hover {
-  background-color: rgba(255, 255, 255, 0.12) !important;
-  color: #ffffff !important;
+  background-color: rgba(47, 52, 49, 0.07) !important;
+  color: var(--color-ink) !important;
 }
 .milkdown .operation-item:hover svg,
 .milkdown .toolbar-item:hover svg,
 .milkdown-toolbar > *:hover svg {
-  color: #ffffff !important;
+  color: var(--color-ink) !important;
 }
 
-/* Triggered / active — distinct indigo pill so it's unmistakable */
+/* Triggered / active — distinct aizome pill so it's unmistakable */
 .milkdown .toolbar-item.active,
 .milkdown .toolbar-item[data-active="true"],
 .milkdown-toolbar > *.active,
 .milkdown-toolbar > *[aria-pressed="true"] {
-  background-color: rgba(129, 140, 248, 0.35) !important; /* indigo-400 @ 35% */
-  color: #ffffff !important;
-  box-shadow: inset 0 0 0 1px rgba(165, 180, 252, 0.5);
+  background-color: var(--color-ai-soft) !important;
+  color: var(--color-ai) !important;
+  box-shadow: inset 0 0 0 1px rgba(79, 111, 143, 0.35);
 }
 .milkdown .toolbar-item.active svg,
 .milkdown-toolbar > *.active svg,
 .milkdown-toolbar > *[aria-pressed="true"] svg {
-  color: #ffffff !important;
+  color: var(--color-ai) !important;
 }
 
 /* Hide the Milkdown Crepe built-in source/markdown toggle */

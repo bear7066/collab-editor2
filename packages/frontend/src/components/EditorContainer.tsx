@@ -178,9 +178,9 @@ export const EditorContainer: React.FC = () => {
 
   if (!yjsDoc || !wsProvider) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="flex flex-col items-center gap-4 text-slate-400">
-          <Loader2 size={36} className="animate-spin text-indigo-500" />
+      <div className="min-h-screen flex items-center justify-center bg-paper">
+        <div className="flex flex-col items-center gap-4 text-stone">
+          <Loader2 size={36} className="animate-spin text-moss" />
           <span className="text-sm font-medium tracking-wide">Initializing collaborative session…</span>
         </div>
       </div>
@@ -188,37 +188,30 @@ export const EditorContainer: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col relative ${isIframe ? '' : 'bg-slate-950/5'}`}>
+    <div className="min-h-screen flex flex-col relative bg-paper text-ink">
       {!isIframe && (
-        <>
-          <div className="glow-orb" style={{ top: '-15%', left: '15%' }} />
-          <div className="glow-orb" style={{ bottom: '5%', right: '15%', background: 'radial-gradient(circle, rgba(168,85,247,0.06) 0%, transparent 70%)' }} />
-        </>
-      )}
-
-      {!isIframe && (
-        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-slate-900/80 bg-slate-950/60 backdrop-blur-xl sticky top-0 z-20">
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-line bg-paper/85 backdrop-blur-md sticky top-0 z-20">
           {/* Left: back + project info */}
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => navigate('/?tab=projects')}
-              className="shrink-0 p-2 bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition cursor-pointer"
+              className="shrink-0 p-2 bg-surface border border-line hover:border-ai/50 hover:bg-sunken/60 rounded-xl text-stone hover:text-ink transition cursor-pointer"
             >
               <ArrowLeft size={16} />
             </button>
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-ai bg-ai-soft px-2 py-0.5 rounded-md">
                   Project
                 </span>
                 <span className={`w-2 h-2 rounded-full ${
-                  connectionStatus === 'connected' ? 'bg-emerald-500 shadow-sm shadow-emerald-500/60'
-                    : connectionStatus === 'connecting' ? 'bg-amber-500 animate-pulse'
-                    : 'bg-red-500'
+                  connectionStatus === 'connected' ? 'bg-moss'
+                    : connectionStatus === 'connecting' ? 'bg-kaki animate-pulse'
+                    : 'bg-shu'
                 }`} />
-                <span className="text-[11px] text-slate-500 capitalize">{connectionStatus}</span>
+                <span className="text-[11px] text-stone capitalize">{connectionStatus}</span>
               </div>
-              <h1 className="text-lg font-bold text-white truncate">/project/{projectName}</h1>
+              <h1 className="font-serif text-lg font-semibold text-ink truncate">/project/{projectName}</h1>
             </div>
           </div>
 
@@ -226,14 +219,14 @@ export const EditorContainer: React.FC = () => {
           <div className="flex items-center gap-3 flex-wrap">
             {/* Active collaborators */}
             {activeUsers.length > 1 && (
-              <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-800/50 rounded-xl py-1.5 px-3">
-                <Users size={13} className="text-slate-400" />
-                <span className="text-xs text-slate-400 font-medium">{activeUsers.length} online</span>
+              <div className="flex items-center gap-2 bg-surface border border-line rounded-xl py-1.5 px-3">
+                <Users size={13} className="text-stone" />
+                <span className="text-xs text-stone font-medium">{activeUsers.length} online</span>
                 <div className="flex -space-x-1.5">
                   {activeUsers.slice(0, 5).map((user, idx) => (
                     <div
                       key={idx}
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-slate-950 uppercase select-none cursor-help"
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-surface uppercase select-none cursor-help"
                       style={{ backgroundColor: user.color }}
                       title={user.name}
                     >
@@ -245,20 +238,20 @@ export const EditorContainer: React.FC = () => {
             )}
 
             {/* Save status */}
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-900/40 border border-slate-800/30 rounded-xl py-1.5 px-3">
-              {saveStatus === 'saved' && <><Check size={13} className="text-emerald-400" /><span>Saved</span></>}
-              {saveStatus === 'saving' && <><Loader2 size={13} className="animate-spin text-indigo-400" /><span>Saving…</span></>}
-              {saveStatus === 'syncing' && <><CloudLightning size={13} className="text-amber-400" /><span>Syncing…</span></>}
+            <div className="flex items-center gap-1.5 text-xs text-stone bg-surface border border-line rounded-xl py-1.5 px-3">
+              {saveStatus === 'saved' && <><Check size={13} className="text-moss" /><span>Saved</span></>}
+              {saveStatus === 'saving' && <><Loader2 size={13} className="animate-spin text-ai" /><span>Saving…</span></>}
+              {saveStatus === 'syncing' && <><CloudLightning size={13} className="text-kaki" /><span>Syncing…</span></>}
             </div>
 
             {/* Mode toggle */}
-            <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 gap-1 select-none">
+            <div className="flex bg-sunken border border-line rounded-xl p-1 gap-1 select-none">
               <button
                 onClick={() => handleEditorModeToggle('wysiwyg')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                   editorMode === 'wysiwyg'
-                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-moss-deep text-white'
+                    : 'text-stone hover:text-ink hover:bg-surface'
                 }`}
               >
                 <Eye size={13} />
@@ -268,8 +261,8 @@ export const EditorContainer: React.FC = () => {
                 onClick={() => handleEditorModeToggle('markdown')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                   editorMode === 'markdown'
-                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-moss-deep text-white'
+                    : 'text-stone hover:text-ink hover:bg-surface'
                 }`}
               >
                 <Code size={13} />
@@ -282,18 +275,18 @@ export const EditorContainer: React.FC = () => {
 
       {/* Minimal status + optional mode-toggle bar shown in iframe mode */}
       {isIframe && (
-        <div className="sticky top-0 z-20 flex items-center justify-between px-3 py-1.5 border-b border-slate-900/80 bg-slate-950/80 backdrop-blur-sm shrink-0">
+        <div className="sticky top-0 z-20 flex items-center justify-between px-3 py-1.5 border-b border-line bg-paper/90 backdrop-blur-sm shrink-0">
           {/* Left: online users + save status */}
           <div className="flex items-center gap-2">
             {activeUsers.length > 1 && (
               <div className="flex items-center gap-1.5">
-                <Users size={11} className="text-slate-500" />
-                <span className="text-[11px] text-slate-400 font-medium">{activeUsers.length}</span>
+                <Users size={11} className="text-stone" />
+                <span className="text-[11px] text-stone font-medium">{activeUsers.length}</span>
                 <div className="flex -space-x-1">
                   {activeUsers.slice(0, 4).map((user, idx) => (
                     <div
                       key={idx}
-                      className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white border border-slate-950 uppercase select-none"
+                      className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white border border-surface uppercase select-none"
                       style={{ backgroundColor: user.color }}
                       title={user.name}
                     >
@@ -303,22 +296,22 @@ export const EditorContainer: React.FC = () => {
                 </div>
               </div>
             )}
-            <div className="flex items-center gap-1 text-[11px] text-slate-500">
-              {saveStatus === 'saved'   && <><Check size={11} className="text-emerald-500" /><span>Saved</span></>}
-              {saveStatus === 'saving'  && <><Loader2 size={11} className="animate-spin text-indigo-400" /><span>Saving…</span></>}
-              {saveStatus === 'syncing' && <><CloudLightning size={11} className="text-amber-400" /><span>Syncing…</span></>}
+            <div className="flex items-center gap-1 text-[11px] text-stone">
+              {saveStatus === 'saved'   && <><Check size={11} className="text-moss" /><span>Saved</span></>}
+              {saveStatus === 'saving'  && <><Loader2 size={11} className="animate-spin text-ai" /><span>Saving…</span></>}
+              {saveStatus === 'syncing' && <><CloudLightning size={11} className="text-kaki" /><span>Syncing…</span></>}
             </div>
           </div>
 
           {/* Right: mode toggle (only when ?markdown=true) */}
           {allowMarkdownInIframe && (
-            <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-0.5 gap-0.5 select-none">
+            <div className="flex bg-sunken border border-line rounded-xl p-0.5 gap-0.5 select-none">
               <button
                 onClick={() => handleEditorModeToggle('wysiwyg')}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
                   editorMode === 'wysiwyg'
-                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-moss-deep text-white'
+                    : 'text-stone hover:text-ink hover:bg-surface'
                 }`}
               >
                 <Eye size={11} />
@@ -328,8 +321,8 @@ export const EditorContainer: React.FC = () => {
                 onClick={() => handleEditorModeToggle('markdown')}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
                   editorMode === 'markdown'
-                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-moss-deep text-white'
+                    : 'text-stone hover:text-ink hover:bg-surface'
                 }`}
               >
                 <Code size={11} />
@@ -346,11 +339,11 @@ export const EditorContainer: React.FC = () => {
         {/* WYSIWYG — always mounted so Yjs collab stays connected; hidden via CSS when inactive.
             overflow-y-auto here (not on the inner Milkdown div) so ProseMirror has exactly
             one scroll ancestor for posAtCoords() to compute against.
-            backdrop-filter intentionally omitted: it would create a new containing block for
+            No backdrop-filter here: it would create a new containing block for
             the position:fixed drop-cursor indicator, offsetting it from the viewport. */}
-        <div className={`flex-1 glass rounded-2xl overflow-y-auto ${
+        <div className={`flex-1 bg-surface border border-line rounded-2xl overflow-y-auto ${
           editorMode === 'wysiwyg' ? 'block' : 'hidden'
-        }`} style={{ backdropFilter: 'none', WebkitBackdropFilter: 'none', background: 'rgba(10,14,26,0.94)' }}>
+        }`}>
           <MilkdownProvider>
             <MilkdownEditor
               ref={milkdownRef}

@@ -55,17 +55,18 @@ export const Dashboard: React.FC = () => {
   const filteredItems = items.filter((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="min-h-screen flex flex-col px-6 py-10 max-w-3xl mx-auto text-slate-100">
+    <div className="min-h-screen flex flex-col px-6 py-12 max-w-3xl mx-auto text-ink">
       {/* Header */}
-      <header className="flex items-center justify-between mb-12">
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
+      <header className="flex items-center justify-between mb-14">
+        <h1 className="flex items-center gap-3 font-serif text-2xl font-semibold tracking-wide text-ink">
+          <span className="h-2.5 w-2.5 rounded-full bg-kaki" aria-hidden="true" />
           CollabEditor
         </h1>
         <a
           href={REPO_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-slate-400 hover:text-white transition flex items-center gap-2 text-sm"
+          className="text-stone hover:text-ink transition flex items-center gap-2 text-sm"
           aria-label="View source on GitHub"
         >
           <Github size={18} />
@@ -74,7 +75,7 @@ export const Dashboard: React.FC = () => {
       </header>
 
       {/* Tabs */}
-      <nav className="flex items-end gap-1 border-b border-slate-800 mb-8">
+      <nav className="flex items-end gap-1 border-b border-line mb-8">
         {(
           [
             { tab: 'projects' as const, name: 'Projects', icon: <FileText size={15} /> },
@@ -87,8 +88,8 @@ export const Dashboard: React.FC = () => {
             onClick={() => setSearchParams({ tab })}
             className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition cursor-pointer ${
               activeTab === tab
-                ? 'border-indigo-500 text-white'
-                : 'border-transparent text-slate-500 hover:text-slate-200'
+                ? 'border-moss text-ink'
+                : 'border-transparent text-stone hover:text-ink'
             }`}
           >
             {icon}
@@ -104,12 +105,12 @@ export const Dashboard: React.FC = () => {
           placeholder={`New ${label} name…`}
           value={newItemName}
           onChange={(e) => setNewItemName(e.target.value)}
-          className="flex-1 bg-slate-950/50 border border-slate-800 rounded-lg py-2.5 px-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+          className="flex-1 bg-surface border border-line-strong rounded-lg py-2.5 px-4 text-sm text-ink placeholder-stone-light focus:outline-none focus:border-ai transition"
           required
         />
         <button
           type="submit"
-          className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-4 py-2.5 text-sm font-medium flex items-center gap-2 transition cursor-pointer"
+          className="bg-moss-deep hover:bg-moss text-white rounded-lg px-4 py-2.5 text-sm font-medium flex items-center gap-2 transition cursor-pointer"
         >
           <Plus size={16} />
           Create
@@ -118,35 +119,35 @@ export const Dashboard: React.FC = () => {
 
       {/* Search */}
       <div className="relative mb-4">
-        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone" />
         <input
           type="text"
           placeholder={`Search ${label}s`}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-transparent border border-slate-800/80 rounded-lg py-2 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+          className="w-full bg-transparent border border-line rounded-lg py-2 pl-10 pr-4 text-sm text-ink placeholder-stone-light focus:outline-none focus:border-ai transition"
         />
       </div>
 
       {/* Projects / Boards */}
       {isLoading ? (
-        <div className="text-center py-8 text-slate-500 text-sm">Loading…</div>
+        <div className="text-center py-8 text-stone text-sm">Loading…</div>
       ) : filteredItems.length === 0 ? (
-        <div className="text-center py-8 text-slate-500 text-sm">
+        <div className="text-center py-8 text-stone text-sm">
           {searchQuery ? 'No matches.' : `No ${label}s yet.`}
         </div>
       ) : (
-        <ul className="divide-y divide-slate-800/60">
+        <ul className="divide-y divide-line">
           {filteredItems.map((item) => (
             <li
               key={item.name}
               onClick={() => navigate(`/${label}/${item.name}`)}
-              className="py-3 px-2 -mx-2 rounded-lg cursor-pointer hover:bg-slate-900/40 transition flex items-center justify-between group"
+              className="py-3.5 cursor-pointer transition flex items-center justify-between group"
             >
-              <span className="font-medium text-slate-200 group-hover:text-indigo-300 transition truncate">
+              <span className="font-medium text-ink group-hover:text-moss-deep transition truncate">
                 {item.name}
               </span>
-              <span className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0 ml-4">
+              <span className="flex items-center gap-1.5 text-xs text-stone shrink-0 ml-4">
                 <Calendar size={12} />
                 {new Date(item.updated_at).toLocaleDateString()}
               </span>

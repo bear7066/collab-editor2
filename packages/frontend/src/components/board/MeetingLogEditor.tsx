@@ -6,7 +6,7 @@ import type * as Y from 'yjs';
 import type { WebsocketProvider } from 'y-websocket';
 
 import '@milkdown/crepe/theme/common/style.css';
-import '@milkdown/crepe/theme/frame-dark.css';
+import '@milkdown/crepe/theme/frame.css';
 
 interface MeetingLogEditorProps {
   /** Shared ProseMirror fragment holding the current section's notes. */
@@ -59,7 +59,7 @@ export const MeetingLogEditor: React.FC<MeetingLogEditorProps> = ({ fragment, pr
   }, [loading, fragment, provider]);
 
   return (
-    <div className="board-meeting-log h-80 overflow-y-auto rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 transition focus-within:border-indigo-400">
+    <div className="board-meeting-log h-80 overflow-y-auto rounded-lg border border-line bg-paper px-4 py-3 transition focus-within:border-ai">
       <Milkdown />
     </div>
   );

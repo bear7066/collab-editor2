@@ -59,7 +59,7 @@ export function createDefaultBoardState(): BoardState {
       {
         id: 'section_general',
         name: 'General',
-        accent: '#818cf8',
+        accent: '#6b8f71',
         notes: '',
         groups: [],
       },
