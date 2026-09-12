@@ -109,27 +109,38 @@ const listBoards = async (deps: AppDeps, viewer: number) => {
   return documents.map(({ name, updated_at, visibility, ownerId }) => ({ name, updated_at, visibility, ownerId }));
 };
 
-/** GET lists boards, POST creates one, PATCH changes its visibility. */
+/** GET lists boards, POST creates one, PATCH renames it or changes visibility. */
 const boards: Route = authenticated(async (request, deps, user) => {
   if (request.method === 'GET') {
     return Response.json(await listBoards(deps, user.id), { headers: { 'cache-control': 'no-store' } });
   }
 
   if (request.method === 'POST' || request.method === 'PATCH') {
-    const body = (await request.json().catch(() => null)) as { name?: unknown; visibility?: unknown } | null;
+    const body = (await request.json().catch(() => null)) as { name?: unknown; newName?: unknown; visibility?: unknown } | null;
     const ref = parseDocRef('board', typeof body?.name === 'string' ? body.name : null);
-    const visibility = parseVisibility(body?.visibility);
-
     if (request.method === 'POST') {
-      await syncDocument(deps.store, ref, { viewer: user.id, visibility });
+      const visibility = parseVisibility(body?.visibility);
+      await syncDocument(deps.store, ref, { viewer: user.id, visibility, create: true });
       return Response.json({ name: ref.name, visibility });
     }
 
-    // Only the owner may change visibility; for anyone else the board is not found.
+    // Only the owner may rename or change visibility; for anyone else the
+    // board is not found.
     const meta = await requireAccess(deps.store, ref.id, user.id);
     if (meta.ownerId !== user.id) throw new NotFoundError('Document not found');
-    await deps.store.setVisibility(ref.id, visibility);
-    return Response.json({ name: ref.name, visibility });
+
+    if (typeof body?.newName === 'string') {
+      const target = parseDocRef('board', body.newName);
+      const outcome = await deps.store.renameDocument(ref.id, target.id, target.name);
+      if (outcome === 'conflict') return jsonError(409, 'A board with that name already exists');
+      if (outcome === 'missing') throw new NotFoundError('Document not found');
+      return Response.json({ name: target.name, visibility: meta.visibility });
+    }
+
+    // Absent visibility keeps what the board already has, so a rename-only
+    // request cannot quietly turn a personal board into a shared one.
+    await deps.store.setVisibility(ref.id, parseVisibility(body?.visibility, meta.visibility));
+    return Response.json({ name: ref.name, visibility: parseVisibility(body?.visibility, meta.visibility) });
   }
 
   return methodNotAllowed();

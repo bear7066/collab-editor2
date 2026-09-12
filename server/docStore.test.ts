@@ -105,6 +105,28 @@ function contract(name: string, makeStore: () => DocStore, prefix: string) {
       expect(await namesFor(OTHER)).toEqual([docName('shared'), docName('theirs')].sort());
     });
 
+    test('renames a document, carrying its updates, owner and visibility', async () => {
+      await create('rename-from', { ownerId: OWNER, visibility: 'personal', seed: bytes(5) });
+      await store.appendUpdate(id('rename-from'), bytes(6));
+
+      expect(await store.renameDocument(id('rename-from'), id('rename-to'), docName('rename-to'))).toBe('renamed');
+
+      expect(await store.getDocument(id('rename-from'))).toBeNull();
+      expect(await store.getDocument(id('rename-to'))).toEqual({ ownerId: OWNER, visibility: 'personal' });
+      expect((await store.loadUpdates(id('rename-to'))).updates).toEqual([bytes(5), bytes(6)]);
+    });
+
+    test('refuses a rename onto a name already in use', async () => {
+      await create('rename-a');
+      await create('rename-b');
+      expect(await store.renameDocument(id('rename-a'), id('rename-b'), docName('rename-b'))).toBe('conflict');
+      expect(await store.getDocument(id('rename-a'))).not.toBeNull();
+    });
+
+    test('reports a rename of something that is not there', async () => {
+      expect(await store.renameDocument(id('rename-ghost'), id('rename-ghost2'), docName('rename-ghost2'))).toBe('missing');
+    });
+
     test('reports visibility and owner with each listed document', async () => {
       await create('badge', { ownerId: OWNER, visibility: 'personal' });
       const listed = (await store.listDocuments('project', OWNER)).find((doc) => doc.name === docName('badge'));

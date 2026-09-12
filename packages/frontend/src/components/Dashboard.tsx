@@ -87,7 +87,7 @@ export const Dashboard: React.FC = () => {
       <header className="flex items-center justify-between mb-14">
         <h1 className="flex items-center gap-3 font-serif text-2xl font-semibold tracking-wide text-ink">
           <span className="h-2.5 w-2.5 rounded-full bg-kaki" aria-hidden="true" />
-          CollabEditor
+          Collab Editor
         </h1>
         <div className="flex items-center gap-4 text-sm">
           <ThemeToggle />

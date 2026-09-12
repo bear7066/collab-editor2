@@ -1,5 +1,5 @@
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
-import type { DocKind, DocStore, DocSummary, DocumentInit, Visibility } from './docStore.js';
+import type { DocKind, DocStore, DocSummary, DocumentInit, RenameOutcome, Visibility } from './docStore.js';
 import { Buffer } from 'node:buffer';
 
 // Binary data crosses the driver as hex in and base64 out, so behaviour does
@@ -44,6 +44,29 @@ export class NeonDocStore implements DocStore {
   async setVisibility(id: string, visibility: Visibility) {
     // updated_at is left alone: changing a flag should not reorder the list.
     await this.sql`UPDATE documents SET visibility = ${visibility} WHERE id = ${id}`;
+  }
+
+  async renameDocument(fromId: string, toId: string, newName: string): Promise<RenameOutcome> {
+    const existing = (await this.sql`SELECT id FROM documents WHERE id IN (${fromId}, ${toId})`) as { id: string }[];
+    const ids = new Set(existing.map((row) => row.id));
+    if (!ids.has(fromId)) return 'missing';
+    if (ids.has(toId)) return 'conflict';
+
+    // The foreign key has no ON UPDATE CASCADE, so the new parent row is
+    // created first, the updates are repointed, and only then does the old row
+    // go. All three in one transaction: a crash cannot strand the updates.
+    // A racing creation of the same target makes the insert fail and the whole
+    // transaction roll back, which is the safe outcome.
+    await this.sql.transaction([
+      this.sql`
+        INSERT INTO documents (id, kind, name, markdown, owner_id, visibility, created_at, updated_at)
+        SELECT ${toId}, kind, ${newName}, markdown, owner_id, visibility, created_at, now()
+        FROM documents WHERE id = ${fromId}
+      `,
+      this.sql`UPDATE document_updates SET document_id = ${toId} WHERE document_id = ${fromId}`,
+      this.sql`DELETE FROM documents WHERE id = ${fromId}`,
+    ]);
+    return 'renamed';
   }
 
   async appendUpdate(id: string, update: Uint8Array) {

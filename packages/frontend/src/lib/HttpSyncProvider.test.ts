@@ -20,6 +20,14 @@ async function createServer() {
     now: () => Date.now(),
   };
   const cookie = `session=${await createSessionToken(OWNER, SECRET)}`;
+  await routes.boards(
+    new Request(`${ORIGIN}/api/boards`, {
+      method: 'POST',
+      headers: { cookie, origin: ORIGIN, 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'plans' }),
+    }),
+    deps
+  );
   const server = {
     online: true,
     signedIn: true,

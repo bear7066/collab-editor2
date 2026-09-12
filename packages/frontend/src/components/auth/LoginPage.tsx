@@ -18,7 +18,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ variant, detail, onRetry }
     <div className="w-full max-w-sm text-center">
       <h1 className="mb-3 flex items-center justify-center gap-3 font-serif text-3xl font-semibold tracking-wide">
         <span className="h-2.5 w-2.5 rounded-full bg-kaki" aria-hidden="true" />
-        CollabEditor
+        Collab Editor
       </h1>
 
       {variant === 'signedOut' && (

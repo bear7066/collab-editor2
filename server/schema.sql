@@ -1,4 +1,4 @@
--- CollabEditor schema for Neon Postgres. Safe to run repeatedly.
+-- Collab Editor schema for Neon Postgres. Safe to run repeatedly.
 
 CREATE TABLE IF NOT EXISTS documents (
   id          TEXT PRIMARY KEY,               -- "<kind>/<name>"

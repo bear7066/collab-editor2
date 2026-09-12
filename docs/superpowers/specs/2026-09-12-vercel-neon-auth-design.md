@@ -4,7 +4,7 @@ Status: approved 2026-09-12. Owner: bear7066.
 
 ## Goal
 
-Run CollabEditor with no self-managed server: static frontend and API on
+Run Collab Editor with no self-managed server: static frontend and API on
 Vercel, data in Neon Postgres, access restricted to whitelisted GitHub
 accounts. Single-user use; realtime keystroke sync is not required.
 

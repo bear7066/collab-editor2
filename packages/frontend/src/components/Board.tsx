@@ -22,6 +22,8 @@ import MeetingLogEditor from './board/MeetingLogEditor';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { ThemeToggle } from './ThemeToggle';
 import { BoardVisibility } from './BoardVisibility';
+import { BoardTitle } from './BoardTitle';
+import { useBoardMeta } from '../lib/useBoardMeta';
 import { useBoard } from './board/useBoard';
 import type { BoardTask } from './board/types';
 
@@ -68,6 +70,14 @@ export const Board: React.FC = () => {
     toggleStar,
     visibleGroups,
   } = useBoard(boardName);
+  const { meta, setVisibility, rename } = useBoardMeta(boardName);
+
+  // The name is the address, so a successful rename moves the page with it.
+  const handleRename = async (newName: string) => {
+    const result = await rename(newName);
+    if (result === 'ok') navigate(`/board/${encodeURIComponent(newName)}`, { replace: true });
+    return result;
+  };
 
   const renderAddRow = (key: string, groupId: string | null, parentTaskId: string | null, nested = false) => (
     <form
@@ -311,12 +321,12 @@ export const Board: React.FC = () => {
                 </span>
                 <SyncStatusIndicator status={syncStatus} />
               </div>
-              <h1 className="font-serif text-lg font-semibold text-ink truncate">/board/{boardName}</h1>
+              <BoardTitle boardName={boardName} canRename={meta?.isOwner ?? false} onRename={handleRename} />
             </div>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <BoardVisibility boardName={boardName} />
+            {meta && <BoardVisibility visibility={meta.visibility} isOwner={meta.isOwner} onToggle={setVisibility} />}
             <ThemeToggle variant="pill" />
             {board.meta.meetLink && (
               <a

@@ -1,4 +1,4 @@
-import type { DocKind, DocStore, DocSummary, DocumentInit, Visibility } from './docStore.js';
+import type { DocKind, DocStore, DocSummary, DocumentInit, RenameOutcome, Visibility } from './docStore.js';
 
 interface MemoryDocument {
   kind: DocKind;
@@ -28,6 +28,16 @@ export class MemoryDocStore implements DocStore {
 
   async setVisibility(id: string, visibility: Visibility) {
     this.require(id).visibility = visibility;
+  }
+
+  async renameDocument(fromId: string, toId: string, newName: string): Promise<RenameOutcome> {
+    const document = this.documents.get(fromId);
+    if (!document) return 'missing';
+    if (this.documents.has(toId)) return 'conflict';
+
+    this.documents.delete(fromId);
+    this.documents.set(toId, { ...document, name: newName, updatedAt: new Date() });
+    return 'renamed';
   }
 
   async appendUpdate(id: string, update: Uint8Array) {

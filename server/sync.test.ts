@@ -9,6 +9,10 @@ const OTHER = 9;
 const board = (name = 'plans') => parseDocRef('board', name);
 const project = (name = 'notes') => parseDocRef('project', name);
 
+/** Creating is explicit: only the create flow brings a document into being. */
+const create = (store: MemoryDocStore, ref: ReturnType<typeof parseDocRef>, options: { viewer?: number; visibility?: 'personal' | 'collab' } = {}) =>
+  syncDocument(store, ref, { viewer: options.viewer ?? VIEWER, visibility: options.visibility, create: true });
+
 /** A client doc that has applied everything the server sent it. */
 async function pullInto(store: MemoryDocStore, ref: ReturnType<typeof parseDocRef>, doc = new Y.Doc(), viewer = VIEWER) {
   const diff = await syncDocument(store, ref, { viewer, stateVector: Y.encodeStateVector(doc) });
@@ -43,27 +47,27 @@ describe('parseDocRef', () => {
 describe('syncDocument', () => {
   test('seeds a new board with a General section', async () => {
     const store = new MemoryDocStore();
+    await create(store, board());
     expect(sectionNames(await pullInto(store, board()))).toEqual(['General']);
   });
 
   test('starts a new project empty', async () => {
     const store = new MemoryDocStore();
+    await create(store, project());
     const doc = await pullInto(store, project());
     expect(doc.getXmlFragment('prosemirror').length).toBe(0);
     expect(store.rowCount('project/notes')).toBe(0);
   });
 
-  test('seeds a board only once when first opened concurrently', async () => {
+  test('seeds a board only once when created concurrently', async () => {
     const store = new MemoryDocStore();
-    const [a, b] = await Promise.all([pullInto(store, board()), pullInto(store, board())]);
-    const merged = new Y.Doc();
-    Y.applyUpdate(merged, Y.encodeStateAsUpdate(a));
-    Y.applyUpdate(merged, Y.encodeStateAsUpdate(b));
-    expect(sectionNames(merged)).toEqual(['General']);
+    await Promise.all([create(store, board()), create(store, board())]);
+    expect(sectionNames(await pullInto(store, board()))).toEqual(['General']);
   });
 
   test('delivers a pushed update to another client', async () => {
     const store = new MemoryDocStore();
+    await create(store, project());
     const phone = new Y.Doc();
     const beforeEdit = Y.encodeStateVector(phone);
     phone.getText('t').insert(0, 'hello');
@@ -75,6 +79,7 @@ describe('syncDocument', () => {
 
   test('keeps both edits when two clients push concurrently', async () => {
     const store = new MemoryDocStore();
+    await create(store, project());
     const phone = new Y.Doc();
     const laptop = new Y.Doc();
     phone.getMap('m').set('phone', 1);
@@ -91,6 +96,7 @@ describe('syncDocument', () => {
 
   test('returns only what the client is missing', async () => {
     const store = new MemoryDocStore();
+    await create(store, project());
     const writer = new Y.Doc();
     writer.getText('t').insert(0, 'x'.repeat(2000));
     await syncDocument(store, project(), { viewer: VIEWER, update: Y.encodeStateAsUpdate(writer) });
@@ -103,6 +109,7 @@ describe('syncDocument', () => {
 
   test('compacts stored updates without losing content', async () => {
     const store = new MemoryDocStore();
+    await create(store, project());
     const writer = new Y.Doc();
     const text = writer.getText('t');
     for (let i = 0; i < COMPACT_THRESHOLD + 10; i++) {
@@ -117,28 +124,47 @@ describe('syncDocument', () => {
 
   test('rejects a malformed update', async () => {
     const store = new MemoryDocStore();
+    await create(store, project());
     const garbage = new Uint8Array([255, 1, 2, 3, 4, 5]);
     await expect(syncDocument(store, project(), { viewer: VIEWER, update: garbage })).rejects.toThrow(BadRequestError);
     expect(store.rowCount('project/notes')).toBe(0);
   });
 });
 
-describe('personal and collab access', () => {
-  test('records the opener as owner, collab by default', async () => {
+describe('opening something that is not there', () => {
+  test('refuses a document that was never created, and does not create it', async () => {
     const store = new MemoryDocStore();
-    await pullInto(store, board());
+    await expect(syncDocument(store, board('ghost'), { viewer: VIEWER })).rejects.toThrow(NotFoundError);
+    expect(await store.getDocument('board/ghost')).toBeNull();
+  });
+
+  test('refuses a write to a document that was never created', async () => {
+    const store = new MemoryDocStore();
+    const writer = new Y.Doc();
+    writer.getMap('board').set('meetLink', 'https://example.com');
+    await expect(
+      syncDocument(store, board('ghost'), { viewer: VIEWER, update: Y.encodeStateAsUpdate(writer) })
+    ).rejects.toThrow(NotFoundError);
+    expect(await store.getDocument('board/ghost')).toBeNull();
+  });
+});
+
+describe('personal and collab access', () => {
+  test('records the creator as owner, collab by default', async () => {
+    const store = new MemoryDocStore();
+    await create(store, board());
     expect(await store.getDocument('board/plans')).toEqual({ ownerId: VIEWER, visibility: 'collab' });
   });
 
   test('creates a personal board when asked', async () => {
     const store = new MemoryDocStore();
-    await syncDocument(store, board(), { viewer: VIEWER, visibility: 'personal' });
+    await create(store, board(), { visibility: 'personal' });
     expect(await store.getDocument('board/plans')).toEqual({ ownerId: VIEWER, visibility: 'personal' });
   });
 
   test('keeps a personal board from everyone but its owner', async () => {
     const store = new MemoryDocStore();
-    await syncDocument(store, board(), { viewer: VIEWER, visibility: 'personal' });
+    await create(store, board(), { visibility: 'personal' });
 
     await expect(syncDocument(store, board(), { viewer: OTHER })).rejects.toThrow(NotFoundError);
     expect(sectionNames(await pullInto(store, board(), new Y.Doc(), VIEWER))).toEqual(['General']);
@@ -146,7 +172,7 @@ describe('personal and collab access', () => {
 
   test('refuses writes to a personal board from anyone else', async () => {
     const store = new MemoryDocStore();
-    await syncDocument(store, board(), { viewer: VIEWER, visibility: 'personal' });
+    await create(store, board(), { visibility: 'personal' });
     const intruder = new Y.Doc();
     intruder.getMap('board').set('meetLink', 'https://intruder.example');
 
@@ -158,16 +184,16 @@ describe('personal and collab access', () => {
     expect(owner.getMap('board').get('meetLink')).toBeUndefined();
   });
 
-  test('a personal request cannot take over an existing collab board', async () => {
+  test('a personal create cannot take over an existing collab board', async () => {
     const store = new MemoryDocStore();
-    await pullInto(store, board());
-    await syncDocument(store, board(), { viewer: OTHER, visibility: 'personal' });
+    await create(store, board());
+    await create(store, board(), { viewer: OTHER, visibility: 'personal' });
     expect(await store.getDocument('board/plans')).toEqual({ ownerId: VIEWER, visibility: 'collab' });
   });
 
   test('lets everyone open a collab board', async () => {
     const store = new MemoryDocStore();
-    await pullInto(store, board());
+    await create(store, board());
     expect(sectionNames(await pullInto(store, board(), new Y.Doc(), OTHER))).toEqual(['General']);
   });
 

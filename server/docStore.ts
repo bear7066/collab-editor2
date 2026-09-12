@@ -14,6 +14,8 @@ export interface DocumentInit {
   visibility: Visibility;
 }
 
+export type RenameOutcome = 'renamed' | 'conflict' | 'missing';
+
 export interface DocumentMeta {
   ownerId: number | null;
   visibility: Visibility;
@@ -40,6 +42,12 @@ export interface DocStore {
   /** Ownership and visibility, or null when the document does not exist. */
   getDocument(id: string): Promise<DocumentMeta | null>;
   setVisibility(id: string, visibility: Visibility): Promise<void>;
+  /**
+   * Move a document and its updates to a new id, keeping owner, visibility and
+   * content. Reports 'conflict' when the target id is taken and 'missing' when
+   * the source is not there, so callers can answer without exception mapping.
+   */
+  renameDocument(fromId: string, toId: string, newName: string): Promise<RenameOutcome>;
   appendUpdate(id: string, update: Uint8Array): Promise<void>;
   /** All stored updates in insertion order, plus the highest row id read. */
   loadUpdates(id: string): Promise<{ maxId: number; updates: Uint8Array[] }>;

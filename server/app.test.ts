@@ -77,10 +77,22 @@ describe('data routes require a whitelisted session', () => {
   });
 });
 
+const seedProject = (deps: AppDeps, name: string, ownerId = OWNER.id) =>
+  deps.store.ensureDocument({ id: `project/${name}`, kind: 'project', name, seed: null, ownerId, visibility: 'collab' });
+
 describe('document sync routes', () => {
+  test('opening a board that was never created is a dead end', async () => {
+    const response = await routes.doc(
+      request('/api/doc?kind=board&name=never-made', { cookie: await sessionCookie() }),
+      makeDeps()
+    );
+    expect(response.status).toBe(404);
+  });
+
   test('push from one device is pulled by another', async () => {
     const deps = makeDeps();
     const cookie = await sessionCookie();
+    await seedProject(deps, 'notes');
     const phone = new Y.Doc();
     phone.getText('t').insert(0, 'from phone');
 
@@ -109,6 +121,8 @@ describe('document sync routes', () => {
   });
 
   test('rejects an oversized update body', async () => {
+    const deps = makeDeps();
+    await seedProject(deps, 'notes');
     const response = await routes.doc(
       request('/api/doc?kind=project&name=notes', {
         method: 'POST',
@@ -116,7 +130,7 @@ describe('document sync routes', () => {
         headers: { origin: ORIGIN },
         body: new Uint8Array(1024 * 1024 + 1),
       }),
-      makeDeps()
+      deps
     );
     expect(response.status).toBe(413);
   });
@@ -124,7 +138,15 @@ describe('document sync routes', () => {
   test('lists boards and projects with project markdown', async () => {
     const deps = makeDeps();
     const cookie = await sessionCookie();
-    await routes.doc(request('/api/doc?kind=board&name=plans', { cookie }), deps);
+    await routes.boards(
+      request('/api/boards', {
+        method: 'POST',
+        cookie,
+        headers: { origin: ORIGIN, 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'plans' }),
+      }),
+      deps
+    );
     await routes.markdown(
       request('/api/markdown?name=notes', {
         method: 'PUT',
@@ -208,6 +230,62 @@ describe('personal and collab boards', () => {
     const { deps, friend } = await withPersonalBoard();
     const response = await routes.boards(json('/api/boards', 'PATCH', friend, { name: 'secret', visibility: 'collab' }), deps);
     expect(response.status).toBe(404);
+  });
+
+  test('the owner can rename a board, and the old name stops working', async () => {
+    const { deps, owner } = await withPersonalBoard();
+    const renamed = await routes.boards(json('/api/boards', 'PATCH', owner, { name: 'secret', newName: 'diary' }), deps);
+    expect(renamed.status).toBe(200);
+
+    expect((await routes.doc(request('/api/doc?kind=board&name=diary', { cookie: owner }), deps)).status).toBe(200);
+    const listed = await (await routes.boards(request('/api/boards', { cookie: owner }), deps)).json();
+    expect(listed.map((board: { name: string }) => board.name)).toEqual(['diary']);
+  });
+
+  test('a rename keeps the board content', async () => {
+    const deps = makeDeps();
+    const owner = await sessionCookie(OWNER);
+    await routes.boards(json('/api/boards', 'POST', owner, { name: 'notes' }), deps);
+
+    const writer = new Y.Doc();
+    writer.getMap('board').set('meetLink', 'https://meet.example');
+    await routes.doc(
+      request('/api/doc?kind=board&name=notes', {
+        method: 'POST',
+        cookie: owner,
+        headers: { origin: ORIGIN, 'content-type': 'application/octet-stream' },
+        body: Y.encodeStateAsUpdate(writer) as Uint8Array<ArrayBuffer>,
+      }),
+      deps
+    );
+    await routes.boards(json('/api/boards', 'PATCH', owner, { name: 'notes', newName: 'journal' }), deps);
+
+    const reader = new Y.Doc();
+    const pull = await routes.doc(request('/api/doc?kind=board&name=journal', { cookie: owner }), deps);
+    Y.applyUpdate(reader, new Uint8Array(await pull.arrayBuffer()));
+    expect(reader.getMap('board').get('meetLink')).toBe('https://meet.example');
+  });
+
+  test('another user cannot rename a personal board', async () => {
+    const { deps, friend } = await withPersonalBoard();
+    const response = await routes.boards(json('/api/boards', 'PATCH', friend, { name: 'secret', newName: 'stolen' }), deps);
+    expect(response.status).toBe(404);
+  });
+
+  test('rejects a rename onto an existing board', async () => {
+    const deps = makeDeps();
+    const owner = await sessionCookie(OWNER);
+    await routes.boards(json('/api/boards', 'POST', owner, { name: 'one' }), deps);
+    await routes.boards(json('/api/boards', 'POST', owner, { name: 'two' }), deps);
+
+    const response = await routes.boards(json('/api/boards', 'PATCH', owner, { name: 'one', newName: 'two' }), deps);
+    expect(response.status).toBe(409);
+  });
+
+  test('rejects an invalid new name', async () => {
+    const { deps, owner } = await withPersonalBoard();
+    const response = await routes.boards(json('/api/boards', 'PATCH', owner, { name: 'secret', newName: 'a/b' }), deps);
+    expect(response.status).toBe(400);
   });
 
   test('rejects an unknown visibility value', async () => {

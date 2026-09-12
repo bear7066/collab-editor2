@@ -1,4 +1,4 @@
-# CollabEditor
+# Collab Editor
 
 A personal Markdown editor and task board with a zen interface. Built with
 **React**, **Yjs**, **Milkdown**, **Vercel Functions** and **Neon Postgres**,
