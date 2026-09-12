@@ -5,6 +5,7 @@ import { MilkdownProvider } from '@milkdown/react';
 import MilkdownEditor, { MilkdownEditorRef } from './MilkdownEditor';
 import MarkdownEditor from './MarkdownEditor';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
+import { ThemeToggle } from './ThemeToggle';
 import { apiFetch } from '../lib/api';
 import { useSyncedDoc } from '../lib/useSyncedDoc';
 
@@ -163,15 +164,16 @@ export const EditorContainer: React.FC = () => {
             </div>
           </div>
 
-          {/* Right: mode toggle */}
+          {/* Right: theme + mode toggle */}
           <div className="flex items-center gap-3 flex-wrap">
+            <ThemeToggle variant="pill" />
             {/* Mode toggle */}
             <div className="flex bg-sunken border border-line rounded-xl p-1 gap-1 select-none">
               <button
                 onClick={() => handleEditorModeToggle('wysiwyg')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                   editorMode === 'wysiwyg'
-                    ? 'bg-moss-deep text-white'
+                    ? 'bg-moss-deep text-on-moss'
                     : 'text-stone hover:text-ink hover:bg-surface'
                 }`}
               >
@@ -182,7 +184,7 @@ export const EditorContainer: React.FC = () => {
                 onClick={() => handleEditorModeToggle('markdown')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                   editorMode === 'markdown'
-                    ? 'bg-moss-deep text-white'
+                    ? 'bg-moss-deep text-on-moss'
                     : 'text-stone hover:text-ink hover:bg-surface'
                 }`}
               >
@@ -208,7 +210,7 @@ export const EditorContainer: React.FC = () => {
                 onClick={() => handleEditorModeToggle('wysiwyg')}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
                   editorMode === 'wysiwyg'
-                    ? 'bg-moss-deep text-white'
+                    ? 'bg-moss-deep text-on-moss'
                     : 'text-stone hover:text-ink hover:bg-surface'
                 }`}
               >
@@ -219,7 +221,7 @@ export const EditorContainer: React.FC = () => {
                 onClick={() => handleEditorModeToggle('markdown')}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
                   editorMode === 'markdown'
-                    ? 'bg-moss-deep text-white'
+                    ? 'bg-moss-deep text-on-moss'
                     : 'text-stone hover:text-ink hover:bg-surface'
                 }`}
               >

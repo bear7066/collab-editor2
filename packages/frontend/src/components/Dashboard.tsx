@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Search, Calendar, Github, FileText, KanbanSquare, LogOut } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { useAuth } from './auth/AuthGate';
+import { ThemeToggle } from './ThemeToggle';
 
 interface Project {
   name: string;
@@ -66,6 +67,7 @@ export const Dashboard: React.FC = () => {
           CollabEditor
         </h1>
         <div className="flex items-center gap-4 text-sm">
+          <ThemeToggle />
           <a
             href={REPO_URL}
             target="_blank"
@@ -125,7 +127,7 @@ export const Dashboard: React.FC = () => {
         />
         <button
           type="submit"
-          className="bg-moss-deep hover:bg-moss text-white rounded-lg px-4 py-2.5 text-sm font-medium flex items-center gap-2 transition cursor-pointer"
+          className="bg-moss-deep hover:bg-moss text-on-moss rounded-lg px-4 py-2.5 text-sm font-medium flex items-center gap-2 transition cursor-pointer"
         >
           <Plus size={16} />
           Create

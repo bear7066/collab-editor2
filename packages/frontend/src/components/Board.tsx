@@ -20,6 +20,7 @@ import { activeChildren, countActive } from './board/boardModel';
 import { ARCHIVE_SCROLL_THRESHOLD, displayAccent } from './board/constants';
 import MeetingLogEditor from './board/MeetingLogEditor';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
+import { ThemeToggle } from './ThemeToggle';
 import { useBoard } from './board/useBoard';
 import type { BoardTask } from './board/types';
 
@@ -292,6 +293,7 @@ export const Board: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
+            <ThemeToggle variant="pill" />
             {board.meta.meetLink && (
               <a
                 className="flex items-center gap-2 bg-surface border border-line rounded-xl py-1.5 px-3 text-xs font-medium text-stone transition hover:border-ai/50 hover:text-ai"

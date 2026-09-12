@@ -8,6 +8,7 @@ behind GitHub sign-in restricted to a whitelist.
 - **Projects**: WYSIWYG (Milkdown Crepe) and raw Markdown editing.
 - **Sync across devices**: edits save automatically about a second after you stop typing; other open devices pick them up within a few seconds. Concurrent edits merge (Yjs CRDT), and unsent edits survive going offline.
 - **Private**: every API call requires a GitHub account listed in `ALLOWED_GITHUB_IDS`.
+- **Light and dark**: the same zen palette in both. The header toggle cycles system → light → dark and remembers the choice on that device; dark is applied before first paint, so there is no white flash.
 - **Iframe mode**: append `?iframe=true` to a board or project URL to hide the header.
 
 Design notes: [`docs/superpowers/specs/2026-09-12-vercel-neon-auth-design.md`](docs/superpowers/specs/2026-09-12-vercel-neon-auth-design.md).

@@ -45,7 +45,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ variant, onRetry }) => (
         <button
           type="button"
           onClick={signIn}
-          className="flex w-full items-center justify-center gap-2.5 rounded-lg bg-moss-deep px-4 py-3 text-sm font-medium text-white transition hover:bg-moss cursor-pointer"
+          className="flex w-full items-center justify-center gap-2.5 rounded-lg bg-moss-deep px-4 py-3 text-sm font-medium text-on-moss transition hover:bg-moss cursor-pointer"
         >
           <Github size={17} />
           Sign in with GitHub
