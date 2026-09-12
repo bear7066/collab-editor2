@@ -21,6 +21,7 @@ import { ARCHIVE_SCROLL_THRESHOLD, displayAccent } from './board/constants';
 import MeetingLogEditor from './board/MeetingLogEditor';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { ThemeToggle } from './ThemeToggle';
+import { BoardVisibility } from './BoardVisibility';
 import { useBoard } from './board/useBoard';
 import type { BoardTask } from './board/types';
 
@@ -238,6 +239,28 @@ export const Board: React.FC = () => {
     );
   };
 
+  // A 404 means the board does not exist or belongs to someone else; the
+  // provider stops retrying, so show the dead end instead of "reconnecting".
+  if (syncStatus === 'notFound') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-paper px-5 text-ink-soft">
+        <div className="max-w-md rounded-xl border border-line bg-surface p-5">
+          <h1 className="mb-2 font-serif text-lg font-semibold text-ink">Board unavailable</h1>
+          <p className="mb-4 text-sm leading-6 text-stone">
+            This board does not exist, or it is personal to someone else.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="rounded-md border border-line-strong px-3 py-2 text-sm font-semibold text-ink-soft transition hover:border-stone hover:text-ink cursor-pointer"
+          >
+            Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper text-stone">
@@ -293,6 +316,7 @@ export const Board: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
+            <BoardVisibility boardName={boardName} />
             <ThemeToggle variant="pill" />
             {board.meta.meetLink && (
               <a

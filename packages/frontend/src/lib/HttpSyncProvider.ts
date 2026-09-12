@@ -2,7 +2,7 @@ import * as Y from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
 import { notifyUnauthorized } from './authEvents';
 
-export type SyncStatus = 'loading' | 'saved' | 'saving' | 'offline' | 'unauthorized';
+export type SyncStatus = 'loading' | 'saved' | 'saving' | 'offline' | 'unauthorized' | 'notFound';
 export type DocKind = 'board' | 'project';
 
 /** Browser hooks, injectable so tests can drive visibility, activity and time. */
@@ -61,6 +61,8 @@ const fromBase64 = (value: string) => Uint8Array.from(atob(value), (char) => cha
 const toBase64Url = (bytes: Uint8Array) => toBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 class UnauthorizedError extends Error {}
+/** The document is gone, or this user may not see it. Either way: terminal. */
+class MissingError extends Error {}
 
 type Listeners = { sync: Set<(synced: boolean) => void>; status: Set<(status: SyncStatus) => void> };
 
@@ -86,6 +88,7 @@ export class HttpSyncProvider {
   private failures = 0;
   private offline = false;
   private unauthorized = false;
+  private missing = false;
   private destroyed = false;
   private lastActivity: number;
   private pushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -185,7 +188,7 @@ export class HttpSyncProvider {
   }
 
   private schedulePush() {
-    if (this.destroyed || this.unauthorized || this.retryTimer) return;
+    if (this.destroyed || this.unauthorized || this.missing || this.retryTimer) return;
     if (this.pushTimer) clearTimeout(this.pushTimer);
     this.pushTimer = setTimeout(() => {
       this.pushTimer = null;
@@ -195,7 +198,7 @@ export class HttpSyncProvider {
 
   private poll() {
     const { environment, idleTimeoutMs } = this.options;
-    if (!this.synced || !environment.isVisible()) return;
+    if (this.missing || !this.synced || !environment.isVisible()) return;
     if (environment.now() - this.lastActivity > idleTimeoutMs) return;
     void this.pull();
   }
@@ -204,12 +207,13 @@ export class HttpSyncProvider {
     const sv = toBase64Url(Y.encodeStateVector(this.doc));
     const response = await this.options.fetch(`${this.url}&sv=${sv}`, { credentials: 'same-origin', ...init });
     if (response.status === 401) throw new UnauthorizedError();
+    if (response.status === 404) throw new MissingError();
     if (!response.ok) throw new Error(`Sync request failed with ${response.status}`);
     return new Uint8Array(await response.arrayBuffer());
   }
 
   private async push() {
-    if (this.destroyed || this.unauthorized || this.pushInFlight || this.queue.length === 0) return;
+    if (this.destroyed || this.unauthorized || this.missing || this.pushInFlight || this.queue.length === 0) return;
     this.pushInFlight = true;
     const sending = this.queue.splice(0);
     try {
@@ -235,7 +239,7 @@ export class HttpSyncProvider {
   }
 
   private async pull() {
-    if (this.destroyed || this.unauthorized || this.pullInFlight) return;
+    if (this.destroyed || this.unauthorized || this.missing || this.pullInFlight) return;
     this.pullInFlight = true;
     try {
       const diff = await this.request({ method: 'GET' });
@@ -269,6 +273,14 @@ export class HttpSyncProvider {
       return;
     }
 
+    // Retrying a 404 would never succeed: the board is missing, or private to
+    // someone else. Stop, and let the page say so.
+    if (error instanceof MissingError) {
+      this.missing = true;
+      this.refreshStatus();
+      return;
+    }
+
     this.offline = true;
     this.failures += 1;
     if (this.retryTimer) return;
@@ -284,6 +296,7 @@ export class HttpSyncProvider {
   private refreshStatus() {
     let next: SyncStatus;
     if (this.unauthorized) next = 'unauthorized';
+    else if (this.missing) next = 'notFound';
     else if (this.offline) next = 'offline';
     else if (!this.synced) next = 'loading';
     else if (this.hasPendingChanges()) next = 'saving';

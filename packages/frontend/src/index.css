@@ -41,6 +41,7 @@
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
+  --grain-opacity: 0.16;
   --shadow-soft: rgba(47, 52, 49, 0.08);
   --shadow-strong: rgba(47, 52, 49, 0.10);
   color: var(--color-ink);
@@ -57,6 +58,8 @@
  */
 :root[data-theme='dark'] {
   color-scheme: dark;
+  /* Dark ink shows grain more readily, so it needs a lighter hand. */
+  --grain-opacity: 0.08;
   --shadow-soft: rgba(0, 0, 0, 0.45);
   --shadow-strong: rgba(0, 0, 0, 0.55);
 
@@ -92,9 +95,26 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  background-color: var(--color-paper);
+  /* No background here: :root paints the ground, so the grain layer below
+     (body::before, z-index -1) is not hidden behind the body's own fill. */
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/*
+ * Paper grain: a tiled SVG noise field held behind the content. Fixed, so it
+ * stays still while the page scrolls, and pointer-transparent so it never
+ * interferes with clicks.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
 }
 
 /* Custom scrollbars */

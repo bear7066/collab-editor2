@@ -5,25 +5,61 @@ import { NeonDocStore } from './neonDocStore.js';
 
 const bytes = (...values: number[]) => new Uint8Array(values);
 
+const OWNER = 1001;
+const OTHER = 2002;
+
 function contract(name: string, makeStore: () => DocStore, prefix: string) {
   describe(`${name} DocStore contract`, () => {
     const store = makeStore();
     const id = (suffix: string) => `project/${prefix}${suffix}`;
     const docName = (suffix: string) => `${prefix}${suffix}`;
 
+    /** Creation defaults used by tests that do not care about ownership. */
+    const create = (suffix: string, extra: Partial<Parameters<DocStore['ensureDocument']>[0]> = {}) =>
+      store.ensureDocument({
+        id: id(suffix),
+        kind: 'project',
+        name: docName(suffix),
+        seed: null,
+        ownerId: OWNER,
+        visibility: 'collab',
+        ...extra,
+      });
+
     test('stores the seed only when the document is created', async () => {
-      await store.ensureDocument(id('seed'), 'project', docName('seed'), bytes(1));
-      await store.ensureDocument(id('seed'), 'project', docName('seed'), bytes(2));
+      await create('seed', { seed: bytes(1) });
+      await create('seed', { seed: bytes(2) });
       expect((await store.loadUpdates(id('seed'))).updates).toEqual([bytes(1)]);
     });
 
     test('seeds once under concurrent creation', async () => {
-      await Promise.all([1, 2, 3].map((n) => store.ensureDocument(id('race'), 'project', docName('race'), bytes(n))));
+      await Promise.all([1, 2, 3].map((n) => create('race', { seed: bytes(n) })));
       expect((await store.loadUpdates(id('race'))).updates).toHaveLength(1);
     });
 
+    test('records the owner and visibility chosen at creation', async () => {
+      await create('owned', { ownerId: OWNER, visibility: 'personal' });
+      expect(await store.getDocument(id('owned'))).toEqual({ ownerId: OWNER, visibility: 'personal' });
+    });
+
+    test('a later ensureDocument never reassigns the owner or visibility', async () => {
+      await create('keep', { ownerId: OWNER, visibility: 'personal' });
+      await create('keep', { ownerId: OTHER, visibility: 'collab' });
+      expect(await store.getDocument(id('keep'))).toEqual({ ownerId: OWNER, visibility: 'personal' });
+    });
+
+    test('reports nothing for a document that does not exist', async () => {
+      expect(await store.getDocument(id('missing'))).toBeNull();
+    });
+
+    test('changes visibility on request', async () => {
+      await create('flip', { visibility: 'collab' });
+      await store.setVisibility(id('flip'), 'personal');
+      expect((await store.getDocument(id('flip')))?.visibility).toBe('personal');
+    });
+
     test('appends updates in order and reports the highest row id', async () => {
-      await store.ensureDocument(id('append'), 'project', docName('append'), null);
+      await create('append');
       await store.appendUpdate(id('append'), bytes(10, 11));
       await store.appendUpdate(id('append'), bytes(12));
       const { maxId, updates } = await store.loadUpdates(id('append'));
@@ -32,7 +68,7 @@ function contract(name: string, makeStore: () => DocStore, prefix: string) {
     });
 
     test('replaces rows up to maxId and keeps later rows', async () => {
-      await store.ensureDocument(id('compact'), 'project', docName('compact'), null);
+      await create('compact');
       await store.appendUpdate(id('compact'), bytes(1));
       await store.appendUpdate(id('compact'), bytes(2));
       const { maxId } = await store.loadUpdates(id('compact'));
@@ -43,15 +79,36 @@ function contract(name: string, makeStore: () => DocStore, prefix: string) {
     });
 
     test('lists documents of one kind with markdown, newest first', async () => {
-      await store.ensureDocument(id('list-a'), 'project', docName('list-a'), null);
-      await store.ensureDocument(id('list-b'), 'project', docName('list-b'), null);
+      await create('list-a');
+      await create('list-b');
       await store.setMarkdown(id('list-a'), '# hello');
 
-      const listed = (await store.listDocuments('project')).filter((doc) => doc.name.startsWith(`${prefix}list-`));
+      const listed = (await store.listDocuments('project', OWNER)).filter((doc) => doc.name.startsWith(`${prefix}list-`));
       expect(listed.map((doc) => doc.name)).toEqual([docName('list-a'), docName('list-b')]);
       expect(listed[0].markdown).toBe('# hello');
       expect(Number.isNaN(Date.parse(listed[0].updated_at))).toBe(false);
-      expect((await store.listDocuments('board')).some((doc) => doc.name.startsWith(prefix))).toBe(false);
+      expect((await store.listDocuments('board', OWNER)).some((doc) => doc.name.startsWith(prefix))).toBe(false);
+    });
+
+    test('hides personal documents from everyone but their owner', async () => {
+      await create('mine', { ownerId: OWNER, visibility: 'personal' });
+      await create('theirs', { ownerId: OTHER, visibility: 'personal' });
+      await create('shared', { ownerId: OTHER, visibility: 'collab' });
+
+      const namesFor = async (viewer: number) =>
+        (await store.listDocuments('project', viewer))
+          .filter((doc) => ['mine', 'theirs', 'shared'].some((suffix) => doc.name === docName(suffix)))
+          .map((doc) => doc.name)
+          .sort();
+
+      expect(await namesFor(OWNER)).toEqual([docName('mine'), docName('shared')].sort());
+      expect(await namesFor(OTHER)).toEqual([docName('shared'), docName('theirs')].sort());
+    });
+
+    test('reports visibility and owner with each listed document', async () => {
+      await create('badge', { ownerId: OWNER, visibility: 'personal' });
+      const listed = (await store.listDocuments('project', OWNER)).find((doc) => doc.name === docName('badge'));
+      expect(listed).toMatchObject({ visibility: 'personal', ownerId: OWNER });
     });
   });
 }

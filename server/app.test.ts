@@ -7,6 +7,7 @@ import { MemoryDocStore } from './memoryDocStore.js';
 const ORIGIN = 'https://collab.example';
 const SECRET = 'test-secret-that-is-at-least-32-characters-long';
 const OWNER = { id: 86918643, login: 'bear7066' };
+const FRIEND = { id: 99878260, login: 'friend' };
 const STRANGER = { id: 1, login: 'someone' };
 
 function makeDeps(overrides: Partial<AppDeps> = {}): AppDeps {
@@ -16,7 +17,7 @@ function makeDeps(overrides: Partial<AppDeps> = {}): AppDeps {
       authSecret: SECRET,
       githubClientId: 'client-id',
       githubClientSecret: 'client-secret',
-      allowedIds: new Set([OWNER.id]),
+      allowedIds: new Set([OWNER.id, FRIEND.id]),
     },
     fetch: (async () => {
       throw new Error('unexpected network call');
@@ -138,6 +139,82 @@ describe('document sync routes', () => {
     const projects = await (await routes.projects(request('/api/projects', { cookie }), deps)).json();
     expect(boards.map((board: { name: string }) => board.name)).toEqual(['plans']);
     expect(projects).toEqual([expect.objectContaining({ name: 'notes', markdown: '# Notes' })]);
+  });
+});
+
+describe('personal and collab boards', () => {
+  const json = (path: string, method: string, cookie: string, body: unknown) =>
+    request(path, { method, cookie, headers: { origin: ORIGIN, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+
+  /** Owner creates a personal board; returns deps plus both users' cookies. */
+  async function withPersonalBoard() {
+    const deps = makeDeps();
+    const owner = await sessionCookie(OWNER);
+    const friend = await sessionCookie(FRIEND);
+    const created = await routes.boards(json('/api/boards', 'POST', owner, { name: 'secret', visibility: 'personal' }), deps);
+    expect(created.status).toBe(200);
+    return { deps, owner, friend };
+  }
+
+  test('a board created without a visibility is collab', async () => {
+    const deps = makeDeps();
+    const owner = await sessionCookie(OWNER);
+    await routes.boards(json('/api/boards', 'POST', owner, { name: 'shared' }), deps);
+    const listed = await (await routes.boards(request('/api/boards', { cookie: await sessionCookie(FRIEND) }), deps)).json();
+    expect(listed).toEqual([expect.objectContaining({ name: 'shared', visibility: 'collab' })]);
+  });
+
+  test('another user cannot read a personal board', async () => {
+    const { deps, friend } = await withPersonalBoard();
+    const response = await routes.doc(request('/api/doc?kind=board&name=secret', { cookie: friend }), deps);
+    expect(response.status).toBe(404);
+  });
+
+  test('another user cannot write to a personal board', async () => {
+    const { deps, friend } = await withPersonalBoard();
+    const response = await routes.doc(
+      request('/api/doc?kind=board&name=secret', {
+        method: 'POST',
+        cookie: friend,
+        headers: { origin: ORIGIN, 'content-type': 'application/octet-stream' },
+        body: Y.encodeStateAsUpdate(new Y.Doc()) as Uint8Array<ArrayBuffer>,
+      }),
+      deps
+    );
+    expect(response.status).toBe(404);
+  });
+
+  test('the owner can still open their personal board', async () => {
+    const { deps, owner } = await withPersonalBoard();
+    expect((await routes.doc(request('/api/doc?kind=board&name=secret', { cookie: owner }), deps)).status).toBe(200);
+  });
+
+  test('a personal board appears only in its owner list', async () => {
+    const { deps, owner, friend } = await withPersonalBoard();
+    const forOwner = await (await routes.boards(request('/api/boards', { cookie: owner }), deps)).json();
+    const forFriend = await (await routes.boards(request('/api/boards', { cookie: friend }), deps)).json();
+    expect(forOwner).toEqual([expect.objectContaining({ name: 'secret', visibility: 'personal' })]);
+    expect(forFriend).toEqual([]);
+  });
+
+  test('the owner can switch a board back to collab', async () => {
+    const { deps, owner, friend } = await withPersonalBoard();
+    const patched = await routes.boards(json('/api/boards', 'PATCH', owner, { name: 'secret', visibility: 'collab' }), deps);
+    expect(patched.status).toBe(200);
+    expect((await routes.doc(request('/api/doc?kind=board&name=secret', { cookie: friend }), deps)).status).toBe(200);
+  });
+
+  test('another user cannot change visibility', async () => {
+    const { deps, friend } = await withPersonalBoard();
+    const response = await routes.boards(json('/api/boards', 'PATCH', friend, { name: 'secret', visibility: 'collab' }), deps);
+    expect(response.status).toBe(404);
+  });
+
+  test('rejects an unknown visibility value', async () => {
+    const deps = makeDeps();
+    const owner = await sessionCookie(OWNER);
+    const response = await routes.boards(json('/api/boards', 'POST', owner, { name: 'x', visibility: 'secretish' }), deps);
+    expect(response.status).toBe(400);
   });
 });
 

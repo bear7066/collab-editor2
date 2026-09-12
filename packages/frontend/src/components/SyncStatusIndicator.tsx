@@ -7,6 +7,7 @@ const LABELS: Record<SyncStatus, string> = {
   saved: 'Saved',
   offline: 'Offline — retrying',
   unauthorized: 'Signed out',
+  notFound: 'Unavailable',
 };
 
 const DOTS: Record<SyncStatus, string> = {
@@ -15,6 +16,7 @@ const DOTS: Record<SyncStatus, string> = {
   saved: 'bg-moss',
   offline: 'bg-kaki animate-pulse',
   unauthorized: 'bg-shu',
+  notFound: 'bg-shu',
 };
 
 export const SyncStatusIndicator: React.FC<{ status: SyncStatus }> = ({ status }) => (

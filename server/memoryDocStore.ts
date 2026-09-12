@@ -1,9 +1,11 @@
-import type { DocKind, DocStore, DocSummary } from './docStore.js';
+import type { DocKind, DocStore, DocSummary, DocumentInit, Visibility } from './docStore.js';
 
 interface MemoryDocument {
   kind: DocKind;
   name: string;
   markdown: string;
+  ownerId: number | null;
+  visibility: Visibility;
   updatedAt: Date;
   rows: { id: number; data: Uint8Array }[];
 }
@@ -13,10 +15,19 @@ export class MemoryDocStore implements DocStore {
   private documents = new Map<string, MemoryDocument>();
   private nextRowId = 1;
 
-  async ensureDocument(id: string, kind: DocKind, name: string, seed: Uint8Array | null) {
+  async ensureDocument({ id, kind, name, seed, ownerId, visibility }: DocumentInit) {
     if (this.documents.has(id)) return;
     const rows = seed ? [{ id: this.nextRowId++, data: seed }] : [];
-    this.documents.set(id, { kind, name, markdown: '', updatedAt: new Date(), rows });
+    this.documents.set(id, { kind, name, markdown: '', ownerId, visibility, updatedAt: new Date(), rows });
+  }
+
+  async getDocument(id: string) {
+    const document = this.documents.get(id);
+    return document ? { ownerId: document.ownerId, visibility: document.visibility } : null;
+  }
+
+  async setVisibility(id: string, visibility: Visibility) {
+    this.require(id).visibility = visibility;
   }
 
   async appendUpdate(id: string, update: Uint8Array) {
@@ -36,11 +47,18 @@ export class MemoryDocStore implements DocStore {
     document.rows = [{ id: this.nextRowId++, data: merged }, ...later];
   }
 
-  async listDocuments(kind: DocKind): Promise<DocSummary[]> {
+  async listDocuments(kind: DocKind, viewerId: number): Promise<DocSummary[]> {
     return [...this.documents.values()]
       .filter((document) => document.kind === kind)
+      .filter((document) => document.visibility === 'collab' || document.ownerId === viewerId)
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-      .map((document) => ({ name: document.name, markdown: document.markdown, updated_at: document.updatedAt.toISOString() }));
+      .map((document) => ({
+        name: document.name,
+        markdown: document.markdown,
+        updated_at: document.updatedAt.toISOString(),
+        visibility: document.visibility,
+        ownerId: document.ownerId,
+      }));
   }
 
   async setMarkdown(id: string, markdown: string) {

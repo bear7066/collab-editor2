@@ -1,11 +1,14 @@
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
-import type { DocKind, DocStore, DocSummary } from './docStore.js';
+import type { DocKind, DocStore, DocSummary, DocumentInit, Visibility } from './docStore.js';
 import { Buffer } from 'node:buffer';
 
 // Binary data crosses the driver as hex in and base64 out, so behaviour does
 // not depend on how the HTTP driver serialises bytea parameters.
 const toHex = (data: Uint8Array) => Buffer.from(data).toString('hex');
 const fromBase64 = (data: string) => new Uint8Array(Buffer.from(data, 'base64'));
+
+// bigint columns arrive as strings from the driver.
+const toId = (value: string | number | null) => (value === null ? null : Number(value));
 
 export class NeonDocStore implements DocStore {
   private sql: NeonQueryFunction<false, false>;
@@ -14,18 +17,33 @@ export class NeonDocStore implements DocStore {
     this.sql = neon(databaseUrl);
   }
 
-  async ensureDocument(id: string, kind: DocKind, name: string, seed: Uint8Array | null) {
+  async ensureDocument({ id, kind, name, seed, ownerId, visibility }: DocumentInit) {
     const seedHex = seed ? toHex(seed) : null;
-    // One statement: the seed row is inserted only if this call inserted the document.
+    // One statement: owner, visibility and the seed row all land only if this
+    // call inserted the document, so a concurrent open cannot reassign them.
     await this.sql`
       WITH inserted AS (
-        INSERT INTO documents (id, kind, name) VALUES (${id}, ${kind}, ${name})
+        INSERT INTO documents (id, kind, name, owner_id, visibility)
+        VALUES (${id}, ${kind}, ${name}, ${ownerId}, ${visibility})
         ON CONFLICT (id) DO NOTHING
         RETURNING id
       )
       INSERT INTO document_updates (document_id, data)
       SELECT id, decode(${seedHex}::text, 'hex') FROM inserted WHERE ${seedHex}::text IS NOT NULL
     `;
+  }
+
+  async getDocument(id: string) {
+    const rows = (await this.sql`
+      SELECT owner_id, visibility FROM documents WHERE id = ${id}
+    `) as { owner_id: string | number | null; visibility: Visibility }[];
+    if (rows.length === 0) return null;
+    return { ownerId: toId(rows[0].owner_id), visibility: rows[0].visibility };
+  }
+
+  async setVisibility(id: string, visibility: Visibility) {
+    // updated_at is left alone: changing a flag should not reorder the list.
+    await this.sql`UPDATE documents SET visibility = ${visibility} WHERE id = ${id}`;
   }
 
   async appendUpdate(id: string, update: Uint8Array) {
@@ -56,11 +74,25 @@ export class NeonDocStore implements DocStore {
     ]);
   }
 
-  async listDocuments(kind: DocKind): Promise<DocSummary[]> {
+  async listDocuments(kind: DocKind, viewerId: number): Promise<DocSummary[]> {
     const rows = (await this.sql`
-      SELECT name, markdown, updated_at FROM documents WHERE kind = ${kind} ORDER BY updated_at DESC
-    `) as { name: string; markdown: string; updated_at: Date | string }[];
-    return rows.map((row) => ({ name: row.name, markdown: row.markdown, updated_at: new Date(row.updated_at).toISOString() }));
+      SELECT name, markdown, updated_at, visibility, owner_id FROM documents
+      WHERE kind = ${kind} AND (visibility = 'collab' OR owner_id = ${viewerId})
+      ORDER BY updated_at DESC
+    `) as {
+      name: string;
+      markdown: string;
+      updated_at: Date | string;
+      visibility: Visibility;
+      owner_id: string | number | null;
+    }[];
+    return rows.map((row) => ({
+      name: row.name,
+      markdown: row.markdown,
+      updated_at: new Date(row.updated_at).toISOString(),
+      visibility: row.visibility,
+      ownerId: toId(row.owner_id),
+    }));
   }
 
   async setMarkdown(id: string, markdown: string) {

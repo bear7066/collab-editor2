@@ -8,8 +8,8 @@ import {
   type SessionUser,
   verifySessionToken,
 } from './auth.js';
-import type { DocKind, DocStore } from './docStore.js';
-import { BadRequestError, parseDocRef, syncDocument } from './sync.js';
+import type { DocStore } from './docStore.js';
+import { BadRequestError, NotFoundError, parseDocRef, parseVisibility, requireAccess, syncDocument } from './sync.js';
 import { Buffer } from 'node:buffer';
 
 export interface AuthConfig {
@@ -72,6 +72,7 @@ const authenticated =
       response = await handler(request, deps, session.user);
     } catch (error) {
       if (error instanceof BadRequestError) return jsonError(400, error.message);
+      if (error instanceof NotFoundError) return jsonError(404, error.message);
       throw error;
     }
 
@@ -84,7 +85,7 @@ const authenticated =
 
 const methodNotAllowed = () => jsonError(405, 'Method not allowed');
 
-const doc: Route = authenticated(async (request, deps) => {
+const doc: Route = authenticated(async (request, deps, user) => {
   if (request.method !== 'GET' && request.method !== 'POST') return methodNotAllowed();
   const url = new URL(request.url);
   const ref = parseDocRef(url.searchParams.get('kind'), url.searchParams.get('name'));
@@ -99,25 +100,62 @@ const doc: Route = authenticated(async (request, deps) => {
     if (update.byteLength > MAX_UPDATE_BYTES) return jsonError(413, 'Update too large');
   }
 
-  const diff = await syncDocument(deps.store, ref, { update, stateVector });
+  const diff = await syncDocument(deps.store, ref, { viewer: user.id, update, stateVector });
   return new Response(diff as Uint8Array<ArrayBuffer>, { headers: { 'content-type': 'application/octet-stream', 'cache-control': 'no-store' } });
 });
 
-const listRoute = (kind: DocKind): Route =>
-  authenticated(async (request, deps) => {
-    if (request.method !== 'GET') return methodNotAllowed();
-    const documents = await deps.store.listDocuments(kind);
-    const body = kind === 'board' ? documents.map(({ name, updated_at }) => ({ name, updated_at })) : documents;
-    return Response.json(body, { headers: { 'cache-control': 'no-store' } });
-  });
+const listBoards = async (deps: AppDeps, viewer: number) => {
+  const documents = await deps.store.listDocuments('board', viewer);
+  return documents.map(({ name, updated_at, visibility, ownerId }) => ({ name, updated_at, visibility, ownerId }));
+};
 
-const markdown: Route = authenticated(async (request, deps) => {
+/** GET lists boards, POST creates one, PATCH changes its visibility. */
+const boards: Route = authenticated(async (request, deps, user) => {
+  if (request.method === 'GET') {
+    return Response.json(await listBoards(deps, user.id), { headers: { 'cache-control': 'no-store' } });
+  }
+
+  if (request.method === 'POST' || request.method === 'PATCH') {
+    const body = (await request.json().catch(() => null)) as { name?: unknown; visibility?: unknown } | null;
+    const ref = parseDocRef('board', typeof body?.name === 'string' ? body.name : null);
+    const visibility = parseVisibility(body?.visibility);
+
+    if (request.method === 'POST') {
+      await syncDocument(deps.store, ref, { viewer: user.id, visibility });
+      return Response.json({ name: ref.name, visibility });
+    }
+
+    // Only the owner may change visibility; for anyone else the board is not found.
+    const meta = await requireAccess(deps.store, ref.id, user.id);
+    if (meta.ownerId !== user.id) throw new NotFoundError('Document not found');
+    await deps.store.setVisibility(ref.id, visibility);
+    return Response.json({ name: ref.name, visibility });
+  }
+
+  return methodNotAllowed();
+});
+
+const projects: Route = authenticated(async (request, deps, user) => {
+  if (request.method !== 'GET') return methodNotAllowed();
+  const documents = await deps.store.listDocuments('project', user.id);
+  return Response.json(documents, { headers: { 'cache-control': 'no-store' } });
+});
+
+const markdown: Route = authenticated(async (request, deps, user) => {
   if (request.method !== 'PUT') return methodNotAllowed();
   const ref = parseDocRef('project', new URL(request.url).searchParams.get('name'));
   const body = (await request.json().catch(() => null)) as { markdown?: unknown } | null;
   if (typeof body?.markdown !== 'string') throw new BadRequestError('Missing markdown field');
 
-  await deps.store.ensureDocument(ref.id, ref.kind, ref.name, null);
+  await deps.store.ensureDocument({
+    id: ref.id,
+    kind: ref.kind,
+    name: ref.name,
+    seed: null,
+    ownerId: user.id,
+    visibility: 'collab',
+  });
+  await requireAccess(deps.store, ref.id, user.id);
   await deps.store.setMarkdown(ref.id, body.markdown);
   return Response.json({ success: true });
 });
@@ -204,8 +242,8 @@ const logout: Route = async (request) => {
 
 export const routes = {
   doc,
-  boards: listRoute('board'),
-  projects: listRoute('project'),
+  boards,
+  projects,
   markdown,
   me,
   login,

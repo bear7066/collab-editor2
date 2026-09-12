@@ -23,11 +23,13 @@ async function createServer() {
   const server = {
     online: true,
     signedIn: true,
+    missing: false,
     calls: [] as string[],
     fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input), ORIGIN);
       server.calls.push(`${init?.method ?? 'GET'} ${url.pathname}`);
       if (!server.online) throw new TypeError('Failed to fetch');
+      if (server.missing) return Response.json({ error: 'Not found' }, { status: 404 });
       const headers = new Headers(init?.headers);
       if (server.signedIn) headers.set('cookie', cookie);
       if (init?.method && init.method !== 'GET') headers.set('origin', ORIGIN);
@@ -215,6 +217,19 @@ describe('HttpSyncProvider', () => {
     // A local edit counts as activity and resumes syncing.
     doc.getMap('board').set('meetSchedule', 'Tue');
     await waitFor(() => server.calls.length > callsWhenIdle + 1);
+    provider.destroy();
+  });
+
+  test('treats a missing or forbidden document as final, without retrying', async () => {
+    const server = await createServer();
+    server.missing = true;
+    const { provider } = connect(server);
+
+    await waitFor(() => provider.status === 'notFound');
+    expect(provider.synced).toBe(false);
+    const calls = server.calls.length;
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    expect(server.calls.length).toBe(calls);
     provider.destroy();
   });
 
