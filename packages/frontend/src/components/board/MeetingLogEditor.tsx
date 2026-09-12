@@ -3,7 +3,7 @@ import { Crepe } from '@milkdown/crepe';
 import { Milkdown, useEditor } from '@milkdown/react';
 import { collab, collabServiceCtx } from '@milkdown/plugin-collab';
 import type * as Y from 'yjs';
-import type { WebsocketProvider } from 'y-websocket';
+import type { HttpSyncProvider } from '../../lib/HttpSyncProvider';
 
 import '@milkdown/crepe/theme/common/style.css';
 import '@milkdown/crepe/theme/frame.css';
@@ -11,8 +11,8 @@ import '@milkdown/crepe/theme/frame.css';
 interface MeetingLogEditorProps {
   /** Shared ProseMirror fragment holding the current section's notes. */
   fragment: Y.XmlFragment;
-  /** Board room provider; its awareness renders the remote cursors. */
-  provider: WebsocketProvider;
+  /** Board sync provider; supplies the doc's sync signal and a local awareness. */
+  provider: HttpSyncProvider;
 }
 
 export const MeetingLogEditor: React.FC<MeetingLogEditorProps> = ({ fragment, provider }) => {
@@ -48,7 +48,7 @@ export const MeetingLogEditor: React.FC<MeetingLogEditorProps> = ({ fragment, pr
       if (!isSynced) return;
       crepe.editor.action((ctx) => {
         // Binding the section's fragment (rather than a whole doc) lets every
-        // section share the board room, so one awareness carries all cursors.
+        // section live in the one board document.
         ctx.get(collabServiceCtx).bindXmlFragment(fragment).setAwareness(provider.awareness).connect();
       });
     };

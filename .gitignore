@@ -18,3 +18,8 @@ dist-ssr/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local secrets and Vercel CLI state
+.env
+.env*.local
+.vercel

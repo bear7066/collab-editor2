@@ -1,152 +1,83 @@
-# CollabEditor 📝✨
+# CollabEditor
 
-A real-time collaborative Markdown editor featuring a modern WYSIWYG editor and raw Markdown editor. This is a fullstack application built using **Bun**, **TypeScript**, **React**, **Yjs**, **Milkdown**, and **SQLite**.
+A personal Markdown editor and task board with a zen interface. Built with
+**React**, **Yjs**, **Milkdown**, **Vercel Functions** and **Neon Postgres**,
+behind GitHub sign-in restricted to a whitelist.
 
-It allows multiple users to edit documents concurrently with live color-coded cursor indicators, persistent storage in SQLite, and has built-in support for embedding inside iframes.
+- **Boards**: sections, owner groups, nested tasks, progress, links, an archive, and a Markdown meeting log per section.
+- **Projects**: WYSIWYG (Milkdown Crepe) and raw Markdown editing.
+- **Sync across devices**: edits save automatically about a second after you stop typing; other open devices pick them up within a few seconds. Concurrent edits merge (Yjs CRDT), and unsent edits survive going offline.
+- **Private**: every API call requires a GitHub account listed in `ALLOWED_GITHUB_IDS`.
+- **Iframe mode**: append `?iframe=true` to a board or project URL to hide the header.
 
----
+Design notes: [`docs/superpowers/specs/2026-09-12-vercel-neon-auth-design.md`](docs/superpowers/specs/2026-09-12-vercel-neon-auth-design.md).
 
-## Key Features 🚀
-
-- **Real-Time Collaboration**: Powered by **Yjs** CRDTs and a custom **WebSocket server**. Updates are synchronized across all active users in real-time.
-- **Presence Cursors**: Every user gets a color-coded cursor displaying their name floating above their editing carets.
-- **Dual Editing Modes**:
-  - **WYSIWYG Mode**: Rich, interactive editing powered by **Milkdown (Crepe)**.
-  - **Raw Markdown Mode**: An IDE-like code editing panel with synchronized scrollable line numbers.
-- **Persistent Storage**: Note history is saved as binary document states (`Y.Doc` blobs) in a **SQLite** database on the backend. It also saves plain-text Markdown content for search/indexing purposes.
-- **Iframe Compatibility**: Easily embed the editor inside other web applications. Append `?iframe=true` to any `/project/<project-name>` URL to automatically hide headers and maximize screen estate.
-- **Simple, Fast Routing**: Instantly create or join projects via `/project/<project-name>`. The project name serves as the primary key.
-- **Monorepo Architecture**: Clean, organized workspaces using Bun workspaces.
-
----
-
-## Monorepo Layout 📁
+## Layout
 
 ```text
-collab-editor/
-├── packages/
-│   ├── frontend/             # Vite + React + TypeScript + Milkdown (port 3000)
-│   └── backend/              # Bun + Express + WebSocket + SQLite (port 3001)
-├── package.json              # Monorepo Workspace configuration
-└── README.md
+api/                  Vercel Functions (thin adapters over server/)
+server/               API logic: auth, sync, storage (unit-tested)
+scripts/              dev API server, database migration
+packages/frontend/    Vite + React app
+vercel.json           build output and SPA routing
 ```
 
----
+## Deploying
 
-## Getting Started 🛠️
+You need a Neon project, two GitHub OAuth apps (production and local), and a Vercel account.
 
-### Prerequisites
+### 1. Neon
 
-Bun is only required when running from source or building locally. The release binary does not require Bun or Node.js.
+1. Create a project at [neon.tech](https://neon.tech). Keep the default `main` branch for production and create a `dev` branch for local work.
+2. Copy each branch's connection string (the pooled one is fine).
+3. Create the tables once per branch:
 
-```bash
-curl -fsSL https://bun.sh/install | bash
-```
+   ```bash
+   DATABASE_URL='<connection string>' bun run db:migrate
+   ```
 
-### Install a Release Binary
+### 2. GitHub OAuth apps
 
-Supported platforms: Linux (x86_64, aarch64) and macOS (Apple Silicon).
+Create them at GitHub → Settings → Developer settings → OAuth Apps → New OAuth App:
 
-```bash
-curl -LsSf https://raw.githubusercontent.com/GNITOAHC/collab-editor/main/install.sh | bash
-```
+| App | Homepage URL | Authorization callback URL |
+|---|---|---|
+| Production | `https://<your-domain>` | `https://<your-domain>/api/auth/callback` |
+| Local | `http://localhost:3000` | `http://localhost:3000/api/auth/callback` |
 
-The release binary serves the embedded frontend and stores project data in `collab.sqlite` in the current directory. Pass `--port <port>` to change the serving port:
+For each, note the Client ID and generate a Client secret. If you don't have a domain yet, deploy once (step 3) to get the `*.vercel.app` URL, then create the production app.
 
-```bash
-collab-editor --port 4000
-```
+### 3. Vercel
 
-### Install From Source
+1. Import the GitHub repository at [vercel.com/new](https://vercel.com/new). `vercel.json` sets the build; leave the framework preset as "Other".
+2. Under Settings → Environment Variables (Production), add:
 
-Install all dependencies for both workspaces from the root of the repository:
+   | Variable | Value |
+   |---|---|
+   | `DATABASE_URL` | Neon `main` branch connection string |
+   | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | production OAuth app |
+   | `AUTH_SECRET` | output of `openssl rand -base64 32` |
+   | `ALLOWED_GITHUB_IDS` | `86918643` (comma-separate to add more) |
+
+3. Redeploy, open the site, and sign in with GitHub.
+
+To look up someone's numeric GitHub id: `curl -s https://api.github.com/users/<login> | grep '"id"'`.
+To sign everyone out, change `AUTH_SECRET` and redeploy.
+
+## Local development
 
 ```bash
 bun install
+cp .env.example .env    # fill in the local OAuth app, AUTH_SECRET, and optionally DATABASE_URL (Neon dev branch)
+bun run dev             # http://localhost:3000
 ```
 
----
-
-## Running the Application 💻
-
-### 1. Run Everything (Frontend & Backend)
-
-You can launch both the frontend dev server and the backend server concurrently with a single command:
+`bun run dev` starts Vite on port 3000 and a small Bun server on port 3001 that serves the same `api/*.ts` handlers. Without `DATABASE_URL` it uses an in-memory store that is cleared on restart (this fallback is disabled on Vercel).
 
 ```bash
-bun run dev
+bun test            # unit tests
+bun run typecheck   # server + frontend
+bun run build       # production frontend build
 ```
 
-- **Frontend**: [http://localhost:3000](http://localhost:3000)
-- **Backend API**: `http://localhost:3001`
-- **WebSocket Server**: `ws://localhost:3001`
-
-### 2. Run Individually
-
-If you prefer to run the workspaces in separate terminals:
-
-**Start the Backend server:**
-
-```bash
-bun run dev:backend
-```
-
-**Start the Frontend dev server:**
-
-```bash
-bun run dev:frontend
-```
-
----
-
-## Production Build & Standalone Binary 🏗️
-
-### 1. Compile as a Standalone Single Binary (Recommended)
-
-To compile the entire fullstack project (database handler, REST API, Yjs WebSocket server, and React frontend static assets) into a **single standalone executable binary**:
-
-```bash
-bun run build:binary
-```
-
-This generates a file named `collab-editor-app` in the root directory. You can distribute this single file and run it on any target machine without needing Bun or Node.js installed:
-
-```bash
-./collab-editor-app
-```
-
-- When run, it will automatically serve the embedded frontend assets directly from memory and initialize/read from the local `collab.sqlite` file.
-
-### 2. Export Frontend Statically
-
-If you only want to compile and export the frontend as standard static web files:
-
-```bash
-bun run build:frontend
-```
-
-The output files will be compiled and saved to `packages/frontend/dist/`, ready to be hosted on Netlify, Vercel, S3, or any static hosting service.
-
----
-
-## Architecture & Sync Logic 🧠
-
-1. **Collaboration Protocol**: The Milkdown editor uses `@milkdown/plugin-collab` to bind to a Yjs `Doc`. The client communicates with the server via `y-websocket` using standard binary sync updates.
-2. **SQLite Integration**: The backend Yjs server implements persistence using `setPersistence` from `y-websocket/bin/utils`.
-   - On room creation: The backend loads the binary state blob from SQLite and applies it using `Y.applyUpdate(ydoc, persistedState)`.
-   - On updates: The backend debounces writes to SQLite to ensure high performance under heavy keystroke traffic.
-   - On room destruction (all clients disconnect): The backend immediately writes the final state back to the SQLite table.
-3. **Markdown Text Sync**: In addition to saving the binary state, the frontend debounces plain-text Markdown updates to `PUT /api/project/:name` so that raw note contents are kept in sync in a human-readable column.
-4. **Editor Toggling**: The application keeps the Milkdown WYSIWYG editor mounted in the DOM (but hidden using `display: none`) when in Markdown mode. When switching back to WYSIWYG, the parent component invokes a programmatic `replaceAll(markdown)` action to synchronize all text changes.
-
----
-
-## Technologies Used 🛠️
-
-- **Runtime**: Bun
-- **Frontend Framework**: React, Vite, TypeScript
-- **WYSIWYG Editor**: Milkdown, Milkdown Crepe
-- **CRDT / Real-Time Sync**: Yjs, y-websocket, y-prosemirror
-- **Backend HTTP Server**: Express, CORS, ws
-- **Database**: SQLite (via `bun:sqlite`)
-- **Icons**: Lucide React
+Set `TEST_DATABASE_URL` (a throwaway Neon branch) to also run the storage tests against Postgres.

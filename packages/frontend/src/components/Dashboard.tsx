@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Calendar, Github, FileText, KanbanSquare } from 'lucide-react';
+import { Plus, Search, Calendar, Github, FileText, KanbanSquare, LogOut } from 'lucide-react';
+import { apiFetch } from '../lib/api';
+import { useAuth } from './auth/AuthGate';
 
 interface Project {
   name: string;
@@ -15,7 +17,7 @@ interface Board {
 
 type DashboardTab = 'projects' | 'boards';
 
-const REPO_URL = 'https://github.com/GNITOAHC/collab-editor';
+const REPO_URL = 'https://github.com/bear7066/collab-editor2';
 
 export const Dashboard: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -24,6 +26,7 @@ export const Dashboard: React.FC = () => {
   const [newItemName, setNewItemName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab: DashboardTab = searchParams.get('tab') === 'boards' ? 'boards' : 'projects';
 
@@ -33,7 +36,7 @@ export const Dashboard: React.FC = () => {
 
   const fetchAll = async () => {
     try {
-      const [projectsRes, boardsRes] = await Promise.all([fetch('/api/projects'), fetch('/api/boards')]);
+      const [projectsRes, boardsRes] = await Promise.all([apiFetch('/api/projects'), apiFetch('/api/boards')]);
       if (projectsRes.ok) setProjects(await projectsRes.json());
       if (boardsRes.ok) setBoards(await boardsRes.json());
     } catch (err) {
@@ -62,16 +65,28 @@ export const Dashboard: React.FC = () => {
           <span className="h-2.5 w-2.5 rounded-full bg-kaki" aria-hidden="true" />
           CollabEditor
         </h1>
-        <a
-          href={REPO_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-stone hover:text-ink transition flex items-center gap-2 text-sm"
-          aria-label="View source on GitHub"
-        >
-          <Github size={18} />
-          <span className="hidden sm:inline">GitHub</span>
-        </a>
+        <div className="flex items-center gap-4 text-sm">
+          <a
+            href={REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-stone hover:text-ink transition flex items-center gap-2"
+            aria-label="View source on GitHub"
+          >
+            <Github size={18} />
+            <span className="hidden sm:inline">{user.login}</span>
+          </a>
+          <button
+            type="button"
+            onClick={logout}
+            className="text-stone hover:text-shu transition flex items-center gap-1.5 cursor-pointer"
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            <LogOut size={16} />
+            <span className="hidden sm:inline">Sign out</span>
+          </button>
+        </div>
       </header>
 
       {/* Tabs */}

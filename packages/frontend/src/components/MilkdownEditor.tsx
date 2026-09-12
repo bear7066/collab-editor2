@@ -5,14 +5,14 @@ import { collab, collabServiceCtx } from '@milkdown/plugin-collab';
 import { listener, listenerCtx } from '@milkdown/plugin-listener';
 import { replaceAll, getMarkdown } from '@milkdown/kit/utils';
 import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
+import type { HttpSyncProvider } from '../lib/HttpSyncProvider';
 
 import '@milkdown/crepe/theme/common/style.css';
 import '@milkdown/crepe/theme/frame.css';
 
 interface MilkdownEditorProps {
   doc: Y.Doc;
-  provider: WebsocketProvider;
+  provider: HttpSyncProvider;
   onMarkdownChange: (markdown: string) => void;
 }
 
@@ -49,15 +49,15 @@ export const MilkdownEditor = forwardRef<MilkdownEditorRef, MilkdownEditorProps>
 
             const collabService = ctx.get(collabServiceCtx);
             const connectCollab = (isSynced: boolean) => {
-              if (isSynced) {
-                collabService.bindDoc(doc).setAwareness(provider.awareness).connect();
-              }
+              if (!isSynced) return;
+              provider.off('sync', connectCollab);
+              collabService.bindDoc(doc).setAwareness(provider.awareness).connect();
             };
 
             if (provider.synced) {
               connectCollab(true);
             } else {
-              provider.once('sync', connectCollab);
+              provider.on('sync', connectCollab);
             }
           });
 

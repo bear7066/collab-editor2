@@ -1,16 +1,25 @@
 {
   "name": "collab-editor-monorepo",
   "private": true,
+  "type": "module",
   "workspaces": [
-    "packages/frontend",
-    "packages/backend"
+    "packages/frontend"
   ],
   "scripts": {
+    "dev": "bun run dev:api & bun run dev:frontend",
+    "dev:api": "bun --watch scripts/dev-api.ts",
     "dev:frontend": "bun --cwd packages/frontend dev",
-    "dev:backend": "bun --cwd packages/backend dev",
-    "build:frontend": "bun --cwd packages/frontend build",
-    "start:backend": "bun --cwd packages/backend start",
-    "build:binary": "bun run build:frontend && bun scripts/compile-app.ts && bun build --compile --sourcemap=none packages/backend/src/index.ts --outfile collab-editor-app && bun scripts/reset-frontend-assets.ts",
-    "dev": "bun run dev:backend & bun run dev:frontend"
+    "build": "bun --cwd packages/frontend build",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p tsconfig.json && cd packages/frontend && bun run typecheck",
+    "db:migrate": "bun scripts/migrate.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "yjs": "^13.6.32"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^5.9"
   }
 }

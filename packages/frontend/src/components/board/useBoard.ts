@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
+import { useSyncedDoc } from '../../lib/useSyncedDoc';
 import { ACCENTS, FINISH_LONG_PRESS_MS } from './constants';
 import {
-  BOARD_ROOM_PREFIX,
   createGroupMap,
   createSectionMap,
   createTaskMap,
@@ -16,7 +15,6 @@ import {
   getSectionsArray,
   getTaskChildren,
 } from './boardDoc';
-import { randomPresenceUser } from '../../lib/presence';
 import {
   collectArchive,
   countTasks,
@@ -27,15 +25,9 @@ import {
 } from './boardModel';
 import type { BoardState, PendingFinishStatus } from './types';
 
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
-
 export const useBoard = (boardName: string) => {
-  const [doc, setDoc] = useState<Y.Doc | null>(null);
-  const [provider, setProvider] = useState<WebsocketProvider | null>(null);
+  const { doc, provider, status: syncStatus, synced } = useSyncedDoc('board', boardName);
   const [board, setBoard] = useState<BoardState | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
-  const [onlineCount, setOnlineCount] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
   const [currentSectionId, setCurrentSectionId] = useState('');
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
@@ -46,52 +38,22 @@ export const useBoard = (boardName: string) => {
   const finishPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishPressCommittedRef = useRef(false);
 
-  // Connect to the board's Yjs room. The server seeds new boards with a default
-  // section and persists the doc, so there is no REST load/save cycle here.
+  // The server seeds new boards with a default section; the sync provider
+  // pushes local mutations and pulls remote ones into this doc.
   useEffect(() => {
-    if (!boardName) return undefined;
-
-    const ydoc = new Y.Doc();
-    const wsHost = import.meta.env.DEV
-      ? 'ws://localhost:3001'
-      : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
-    const wsProvider = new WebsocketProvider(wsHost, `${BOARD_ROOM_PREFIX}${boardName}`, ydoc);
-    // Identity shown on remote meeting-log cursors and in the online-users badge.
-    wsProvider.awareness.setLocalStateField('user', randomPresenceUser());
-
-    setDoc(ydoc);
-    setProvider(wsProvider);
     setBoard(null);
-    setIsLoading(true);
     setCurrentSectionId('');
     setCollapsedGroups(new Set());
+    if (!doc) return undefined;
 
     // Local mutations and remote updates both funnel through this refresh path.
-    const refreshBoard = () => setBoard(docToBoardState(ydoc));
-    ydoc.on('update', refreshBoard);
+    const refreshBoard = () => setBoard(docToBoardState(doc));
+    refreshBoard();
+    doc.on('update', refreshBoard);
+    return () => doc.off('update', refreshBoard);
+  }, [doc]);
 
-    const handleStatus = (event: { status: ConnectionStatus }) => setConnectionStatus(event.status);
-    wsProvider.on('status', handleStatus);
-
-    const handleSync = (isSynced: boolean) => {
-      if (!isSynced) return;
-      refreshBoard();
-      setIsLoading(false);
-    };
-    wsProvider.on('sync', handleSync);
-
-    const handleAwarenessChange = () => setOnlineCount(wsProvider.awareness.getStates().size);
-    wsProvider.awareness.on('change', handleAwarenessChange);
-
-    return () => {
-      wsProvider.awareness.off('change', handleAwarenessChange);
-      wsProvider.destroy();
-      ydoc.off('update', refreshBoard);
-      ydoc.destroy();
-      setProvider(null);
-      setDoc(null);
-    };
-  }, [boardName]);
+  const isLoading = !synced;
 
   useEffect(() => {
     if (!board || board.sections.length === 0) return;
@@ -458,7 +420,6 @@ export const useBoard = (boardName: string) => {
     clearFinishPressTimer,
     closeAdder,
     collapsedGroups,
-    connectionStatus,
     currentSectionId,
     cyclePendingFinish,
     deleteGroup,
@@ -471,7 +432,6 @@ export const useBoard = (boardName: string) => {
     editTaskText,
     isLoading,
     newGroupName,
-    onlineCount,
     openAdders,
     pendingFinish,
     provider,
@@ -484,6 +444,7 @@ export const useBoard = (boardName: string) => {
     setNewGroupName,
     startFinishLongPress,
     submitAdd,
+    syncStatus,
     toggleAdder,
     toggleGroupCollapse,
     toggleStar,

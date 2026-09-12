@@ -13,13 +13,13 @@ import {
   Plus,
   Star,
   Trash2,
-  Users,
   Video,
   X,
 } from 'lucide-react';
 import { activeChildren, countActive } from './board/boardModel';
 import { ARCHIVE_SCROLL_THRESHOLD, displayAccent } from './board/constants';
 import MeetingLogEditor from './board/MeetingLogEditor';
+import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { useBoard } from './board/useBoard';
 import type { BoardTask } from './board/types';
 
@@ -37,7 +37,6 @@ export const Board: React.FC = () => {
     clearFinishPressTimer,
     closeAdder,
     collapsedGroups,
-    connectionStatus,
     cyclePendingFinish,
     deleteGroup,
     deleteSection,
@@ -49,7 +48,6 @@ export const Board: React.FC = () => {
     editTaskText,
     isLoading,
     newGroupName,
-    onlineCount,
     openAdders,
     pendingFinish,
     provider,
@@ -62,6 +60,7 @@ export const Board: React.FC = () => {
     setNewGroupName,
     startFinishLongPress,
     submitAdd,
+    syncStatus,
     toggleAdder,
     toggleGroupCollapse,
     toggleStar,
@@ -243,7 +242,7 @@ export const Board: React.FC = () => {
       <div className="flex min-h-screen items-center justify-center bg-paper text-stone">
         <div className="flex items-center gap-3 text-sm font-medium">
           <Loader2 size={18} className="animate-spin text-moss" />
-          {connectionStatus === 'disconnected' ? 'Reconnecting to board…' : 'Loading board...'}
+          {syncStatus === 'offline' ? 'Reconnecting to board…' : 'Loading board...'}
         </div>
       </div>
     );
@@ -286,28 +285,13 @@ export const Board: React.FC = () => {
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-moss-deep bg-moss-soft px-2 py-0.5 rounded-md">
                   Board
                 </span>
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    connectionStatus === 'connected'
-                      ? 'bg-moss'
-                      : connectionStatus === 'connecting'
-                        ? 'bg-kaki animate-pulse'
-                        : 'bg-shu'
-                  }`}
-                />
-                <span className="text-[11px] text-stone capitalize">{connectionStatus}</span>
+                <SyncStatusIndicator status={syncStatus} />
               </div>
               <h1 className="font-serif text-lg font-semibold text-ink truncate">/board/{boardName}</h1>
             </div>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            {onlineCount > 1 && (
-              <div className="flex items-center gap-2 bg-surface border border-line rounded-xl py-1.5 px-3">
-                <Users size={13} className="text-stone" />
-                <span className="text-xs text-stone font-medium">{onlineCount} online</span>
-              </div>
-            )}
             {board.meta.meetLink && (
               <a
                 className="flex items-center gap-2 bg-surface border border-line rounded-xl py-1.5 px-3 text-xs font-medium text-stone transition hover:border-ai/50 hover:text-ai"
