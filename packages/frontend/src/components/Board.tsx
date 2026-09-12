@@ -259,7 +259,7 @@ export const Board: React.FC = () => {
           </p>
           <button
             type="button"
-            onClick={() => navigate('/?tab=boards')}
+            onClick={() => navigate('/')}
             className="rounded-md border border-line-strong px-3 py-2 text-sm font-semibold text-ink-soft transition hover:border-stone hover:text-ink cursor-pointer"
           >
             Dashboard
@@ -276,7 +276,7 @@ export const Board: React.FC = () => {
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
-              onClick={() => navigate('/?tab=boards')}
+              onClick={() => navigate('/')}
               className="shrink-0 p-2 bg-surface border border-line hover:border-moss/60 hover:bg-sunken/60 rounded-xl text-stone hover:text-ink transition cursor-pointer"
             >
               <ArrowLeft size={16} />

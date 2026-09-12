@@ -1,62 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Calendar, Github, FileText, KanbanSquare, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, Calendar, Github, LogOut } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { useAuth } from './auth/AuthGate';
 import { ThemeToggle } from './ThemeToggle';
-
-interface Project {
-  name: string;
-  markdown: string;
-  updated_at: string;
-}
 
 interface Board {
   name: string;
   updated_at: string;
 }
 
-type DashboardTab = 'projects' | 'boards';
-
 const REPO_URL = 'https://github.com/bear7066/collab-editor2';
 
 export const Dashboard: React.FC = () => {
-  const [projects, setProjects] = useState<Project[]>([]);
   const [boards, setBoards] = useState<Board[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [newItemName, setNewItemName] = useState('');
+  const [newBoardName, setNewBoardName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab: DashboardTab = searchParams.get('tab') === 'boards' ? 'boards' : 'projects';
 
   useEffect(() => {
-    fetchAll();
+    const fetchBoards = async () => {
+      try {
+        const response = await apiFetch('/api/boards');
+        if (response.ok) setBoards(await response.json());
+      } catch (error) {
+        console.error('Error fetching boards:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void fetchBoards();
   }, []);
 
-  const fetchAll = async () => {
-    try {
-      const [projectsRes, boardsRes] = await Promise.all([apiFetch('/api/projects'), apiFetch('/api/boards')]);
-      if (projectsRes.ok) setProjects(await projectsRes.json());
-      if (boardsRes.ok) setBoards(await boardsRes.json());
-    } catch (err) {
-      console.error('Error fetching projects and boards:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanName = newItemName.trim().replace(/\s+/g, '-').toLowerCase();
+  const handleCreate = (event: React.FormEvent) => {
+    event.preventDefault();
+    const cleanName = newBoardName.trim().replace(/\s+/g, '-').toLowerCase();
     if (!cleanName) return;
-    navigate(activeTab === 'projects' ? `/project/${cleanName}` : `/board/${cleanName}`);
+    navigate(`/board/${cleanName}`);
   };
 
-  const label = activeTab === 'projects' ? 'project' : 'board';
-  const items: { name: string; updated_at: string }[] = activeTab === 'projects' ? projects : boards;
-  const filteredItems = items.filter((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredBoards = boards.filter((board) => board.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div className="min-h-screen flex flex-col px-6 py-12 max-w-3xl mx-auto text-ink">
@@ -91,37 +76,13 @@ export const Dashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* Tabs */}
-      <nav className="flex items-end gap-1 border-b border-line mb-8">
-        {(
-          [
-            { tab: 'projects' as const, name: 'Projects', icon: <FileText size={15} /> },
-            { tab: 'boards' as const, name: 'Boards', icon: <KanbanSquare size={15} /> },
-          ]
-        ).map(({ tab, name, icon }) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setSearchParams({ tab })}
-            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition cursor-pointer ${
-              activeTab === tab
-                ? 'border-moss text-ink'
-                : 'border-transparent text-stone hover:text-ink'
-            }`}
-          >
-            {icon}
-            {name}
-          </button>
-        ))}
-      </nav>
-
       {/* Create */}
       <form onSubmit={handleCreate} className="flex gap-2 mb-8">
         <input
           type="text"
-          placeholder={`New ${label} name…`}
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
+          placeholder="New board name…"
+          value={newBoardName}
+          onChange={(event) => setNewBoardName(event.target.value)}
           className="flex-1 bg-surface border border-line-strong rounded-lg py-2.5 px-4 text-sm text-ink placeholder-stone-light focus:outline-none focus:border-ai transition"
           required
         />
@@ -139,34 +100,30 @@ export const Dashboard: React.FC = () => {
         <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone" />
         <input
           type="text"
-          placeholder={`Search ${label}s`}
+          placeholder="Search boards"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(event) => setSearchQuery(event.target.value)}
           className="w-full bg-transparent border border-line rounded-lg py-2 pl-10 pr-4 text-sm text-ink placeholder-stone-light focus:outline-none focus:border-ai transition"
         />
       </div>
 
-      {/* Projects / Boards */}
+      {/* Boards */}
       {isLoading ? (
         <div className="text-center py-8 text-stone text-sm">Loading…</div>
-      ) : filteredItems.length === 0 ? (
-        <div className="text-center py-8 text-stone text-sm">
-          {searchQuery ? 'No matches.' : `No ${label}s yet.`}
-        </div>
+      ) : filteredBoards.length === 0 ? (
+        <div className="text-center py-8 text-stone text-sm">{searchQuery ? 'No matches.' : 'No boards yet.'}</div>
       ) : (
         <ul className="divide-y divide-line">
-          {filteredItems.map((item) => (
+          {filteredBoards.map((board) => (
             <li
-              key={item.name}
-              onClick={() => navigate(`/${label}/${item.name}`)}
+              key={board.name}
+              onClick={() => navigate(`/board/${board.name}`)}
               className="py-3.5 cursor-pointer transition flex items-center justify-between group"
             >
-              <span className="font-medium text-ink group-hover:text-moss-deep transition truncate">
-                {item.name}
-              </span>
+              <span className="font-medium text-ink group-hover:text-moss-deep transition truncate">{board.name}</span>
               <span className="flex items-center gap-1.5 text-xs text-stone shrink-0 ml-4">
                 <Calendar size={12} />
-                {new Date(item.updated_at).toLocaleDateString()}
+                {new Date(board.updated_at).toLocaleDateString()}
               </span>
             </li>
           ))}
