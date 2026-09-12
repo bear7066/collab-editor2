@@ -69,6 +69,12 @@ export class NeonDocStore implements DocStore {
     return 'renamed';
   }
 
+  async deleteDocument(id: string): Promise<boolean> {
+    // document_updates cascades via its foreign key (ON DELETE CASCADE).
+    const deleted = (await this.sql`DELETE FROM documents WHERE id = ${id} RETURNING id`) as { id: string }[];
+    return deleted.length > 0;
+  }
+
   async appendUpdate(id: string, update: Uint8Array) {
     await this.sql`
       WITH touched AS (

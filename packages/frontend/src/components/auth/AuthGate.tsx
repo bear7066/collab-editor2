@@ -80,7 +80,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   if (state.status === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-paper text-stone">
+      <div className="flex min-h-screen items-center justify-center text-stone">
         <Loader2 size={20} className="animate-spin text-moss" />
       </div>
     );

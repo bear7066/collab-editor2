@@ -48,6 +48,8 @@ export interface DocStore {
    * the source is not there, so callers can answer without exception mapping.
    */
   renameDocument(fromId: string, toId: string, newName: string): Promise<RenameOutcome>;
+  /** Permanently removes the document and its updates. Returns whether it existed. */
+  deleteDocument(id: string): Promise<boolean>;
   appendUpdate(id: string, update: Uint8Array): Promise<void>;
   /** All stored updates in insertion order, plus the highest row id read. */
   loadUpdates(id: string): Promise<{ maxId: number; updates: Uint8Array[] }>;

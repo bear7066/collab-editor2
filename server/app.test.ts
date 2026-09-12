@@ -294,6 +294,43 @@ describe('personal and collab boards', () => {
     const response = await routes.boards(json('/api/boards', 'POST', owner, { name: 'x', visibility: 'secretish' }), deps);
     expect(response.status).toBe(400);
   });
+
+  test('the owner can delete a board, and it disappears from the listing', async () => {
+    const { deps, owner } = await withPersonalBoard();
+    const deleted = await routes.boards(json('/api/boards', 'DELETE', owner, { name: 'secret' }), deps);
+    expect(deleted.status).toBe(200);
+
+    const listed = await (await routes.boards(request('/api/boards', { cookie: owner }), deps)).json();
+    expect(listed).toEqual([]);
+    expect((await routes.doc(request('/api/doc?kind=board&name=secret', { cookie: owner }), deps)).status).toBe(404);
+  });
+
+  test('another user cannot delete a personal board', async () => {
+    const { deps, friend } = await withPersonalBoard();
+    const response = await routes.boards(json('/api/boards', 'DELETE', friend, { name: 'secret' }), deps);
+    expect(response.status).toBe(404);
+
+    // Confirm it survived: still openable by its actual owner.
+    const owner = await sessionCookie(OWNER);
+    expect((await routes.doc(request('/api/doc?kind=board&name=secret', { cookie: owner }), deps)).status).toBe(200);
+  });
+
+  test('another user cannot delete a collab board they do not own', async () => {
+    const deps = makeDeps();
+    const owner = await sessionCookie(OWNER);
+    const friend = await sessionCookie(FRIEND);
+    await routes.boards(json('/api/boards', 'POST', owner, { name: 'team-board' }), deps);
+
+    const response = await routes.boards(json('/api/boards', 'DELETE', friend, { name: 'team-board' }), deps);
+    expect(response.status).toBe(404);
+  });
+
+  test('deleting a board that does not exist is a dead end, not a crash', async () => {
+    const deps = makeDeps();
+    const owner = await sessionCookie(OWNER);
+    const response = await routes.boards(json('/api/boards', 'DELETE', owner, { name: 'never-was' }), deps);
+    expect(response.status).toBe(404);
+  });
 });
 
 describe('auth routes', () => {

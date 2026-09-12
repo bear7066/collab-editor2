@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Calendar, Github, LogOut, Lock, Users } from 'lucide-react';
+import { Plus, Search, Calendar, Github, LogOut, Lock, Users, Trash2 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { useAuth } from './auth/AuthGate';
 import { ThemeToggle } from './ThemeToggle';
@@ -65,6 +65,23 @@ export const Dashboard: React.FC = () => {
   };
 
   const filteredBoards = boards.filter((board) => board.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  // Only the owner can delete; boards from before ownership existed (ownerId
+  // null) show no button at all, matching what the API allows.
+  const handleDelete = async (event: React.MouseEvent, name: string) => {
+    event.stopPropagation();
+    if (!window.confirm(`Delete board "${name}"? This removes all of its sections, tasks and notes permanently.`)) return;
+    try {
+      const response = await apiFetch('/api/boards', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (response.ok) setBoards((prev) => prev.filter((board) => board.name !== name));
+    } catch {
+      // Leave the list as-is; the user can retry.
+    }
+  };
 
   const visibilityOption = (value: Visibility, label: string, icon: React.ReactNode) => (
     <button
@@ -172,9 +189,22 @@ export const Dashboard: React.FC = () => {
                 )}
                 <span className="font-medium text-ink group-hover:text-moss-deep transition truncate">{board.name}</span>
               </span>
-              <span className="flex items-center gap-1.5 text-xs text-stone shrink-0 ml-4">
-                <Calendar size={12} />
-                {new Date(board.updated_at).toLocaleDateString()}
+              <span className="flex items-center gap-3 text-xs text-stone shrink-0 ml-4">
+                <span className="flex items-center gap-1.5">
+                  <Calendar size={12} />
+                  {new Date(board.updated_at).toLocaleDateString()}
+                </span>
+                {board.ownerId === user.id && (
+                  <button
+                    type="button"
+                    onClick={(event) => handleDelete(event, board.name)}
+                    className="rounded p-1 text-stone opacity-60 transition hover:opacity-100 hover:bg-shu-soft hover:text-shu cursor-pointer"
+                    title="Delete board"
+                    aria-label={`Delete board ${board.name}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </span>
             </li>
           ))}

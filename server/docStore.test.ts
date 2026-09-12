@@ -127,6 +127,21 @@ function contract(name: string, makeStore: () => DocStore, prefix: string) {
       expect(await store.renameDocument(id('rename-ghost'), id('rename-ghost2'), docName('rename-ghost2'))).toBe('missing');
     });
 
+    test('deletes a document and its updates', async () => {
+      await create('doomed', { seed: bytes(1) });
+      await store.appendUpdate(id('doomed'), bytes(2));
+
+      expect(await store.deleteDocument(id('doomed'))).toBe(true);
+      expect(await store.getDocument(id('doomed'))).toBeNull();
+      // Re-creating with the same id starts fresh, proving the old updates are gone too.
+      await create('doomed', { seed: bytes(9) });
+      expect((await store.loadUpdates(id('doomed'))).updates).toEqual([bytes(9)]);
+    });
+
+    test('reports false for deleting something that is not there', async () => {
+      expect(await store.deleteDocument(id('never-existed'))).toBe(false);
+    });
+
     test('reports visibility and owner with each listed document', async () => {
       await create('badge', { ownerId: OWNER, visibility: 'personal' });
       const listed = (await store.listDocuments('project', OWNER)).find((doc) => doc.name === docName('badge'));

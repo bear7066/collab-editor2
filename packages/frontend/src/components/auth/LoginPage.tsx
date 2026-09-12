@@ -14,7 +14,7 @@ const signIn = () => {
 };
 
 export const LoginPage: React.FC<LoginPageProps> = ({ variant, detail, onRetry }) => (
-  <main className="flex min-h-screen items-center justify-center bg-paper px-6 text-ink">
+  <main className="flex min-h-screen items-center justify-center px-6 text-ink">
     <div className="w-full max-w-sm text-center">
       <h1 className="mb-3 flex items-center justify-center gap-3 font-serif text-3xl font-semibold tracking-wide">
         <span className="h-2.5 w-2.5 rounded-full bg-kaki" aria-hidden="true" />

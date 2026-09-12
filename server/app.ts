@@ -109,13 +109,13 @@ const listBoards = async (deps: AppDeps, viewer: number) => {
   return documents.map(({ name, updated_at, visibility, ownerId }) => ({ name, updated_at, visibility, ownerId }));
 };
 
-/** GET lists boards, POST creates one, PATCH renames it or changes visibility. */
+/** GET lists boards, POST creates one, PATCH renames/re-visibilities it, DELETE removes it. */
 const boards: Route = authenticated(async (request, deps, user) => {
   if (request.method === 'GET') {
     return Response.json(await listBoards(deps, user.id), { headers: { 'cache-control': 'no-store' } });
   }
 
-  if (request.method === 'POST' || request.method === 'PATCH') {
+  if (request.method === 'POST' || request.method === 'PATCH' || request.method === 'DELETE') {
     const body = (await request.json().catch(() => null)) as { name?: unknown; newName?: unknown; visibility?: unknown } | null;
     const ref = parseDocRef('board', typeof body?.name === 'string' ? body.name : null);
     if (request.method === 'POST') {
@@ -124,10 +124,16 @@ const boards: Route = authenticated(async (request, deps, user) => {
       return Response.json({ name: ref.name, visibility });
     }
 
-    // Only the owner may rename or change visibility; for anyone else the
-    // board is not found.
+    // Only the owner may rename, re-visibility or delete; for anyone else the
+    // board is not found, matching the "existence not revealed" rule personal
+    // boards already rely on.
     const meta = await requireAccess(deps.store, ref.id, user.id);
     if (meta.ownerId !== user.id) throw new NotFoundError('Document not found');
+
+    if (request.method === 'DELETE') {
+      await deps.store.deleteDocument(ref.id);
+      return Response.json({ success: true });
+    }
 
     if (typeof body?.newName === 'string') {
       const target = parseDocRef('board', body.newName);

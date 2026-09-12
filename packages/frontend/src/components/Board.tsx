@@ -43,7 +43,6 @@ export const Board: React.FC = () => {
     collapsedGroups,
     cyclePendingFinish,
     deleteGroup,
-    deleteSection,
     deleteTask,
     drafts,
     editLink,
@@ -253,7 +252,7 @@ export const Board: React.FC = () => {
   // provider stops retrying, so show the dead end instead of "reconnecting".
   if (syncStatus === 'notFound') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-paper px-5 text-ink-soft">
+      <div className="flex min-h-screen items-center justify-center px-5 text-ink-soft">
         <div className="max-w-md rounded-xl border border-line bg-surface p-5">
           <h1 className="mb-2 font-serif text-lg font-semibold text-ink">Board unavailable</h1>
           <p className="mb-4 text-sm leading-6 text-stone">
@@ -273,7 +272,7 @@ export const Board: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-paper text-stone">
+      <div className="flex min-h-screen items-center justify-center text-stone">
         <div className="flex items-center gap-3 text-sm font-medium">
           <Loader2 size={18} className="animate-spin text-moss" />
           {syncStatus === 'offline' ? 'Reconnecting to board…' : 'Loading board...'}
@@ -284,7 +283,7 @@ export const Board: React.FC = () => {
 
   if (!board || !section) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-paper px-5 text-ink-soft">
+      <div className="flex min-h-screen items-center justify-center px-5 text-ink-soft">
         <div className="max-w-md rounded-xl border border-line bg-surface p-5">
           <h1 className="mb-2 font-serif text-lg font-semibold text-ink">Board unavailable</h1>
           <p className="mb-4 text-sm leading-6 text-stone">
@@ -303,7 +302,7 @@ export const Board: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col relative text-ink bg-paper">
+    <div className="min-h-screen flex flex-col relative text-ink">
       {!isIframe && (
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-line bg-paper/85 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-3 min-w-0">
@@ -573,32 +572,6 @@ export const Board: React.FC = () => {
                     </div>
                   )}
                 </div>
-              )}
-            </section>
-
-            <section className="rounded-xl border border-shu/25 bg-shu-soft/40 p-4">
-              <h2 className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-shu">
-                Danger Zone
-              </h2>
-              <p className="mb-3 text-xs leading-5 text-stone">
-                Delete the current section after confirming the browser prompt. This removes its groups, tasks, notes,
-                and archive.
-              </p>
-              <button
-                type="button"
-                onClick={deleteSection}
-                disabled={board.sections.length <= 1}
-                className={`flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition ${
-                  board.sections.length <= 1
-                    ? 'cursor-not-allowed border-line bg-sunken/60 text-stone-light'
-                    : 'cursor-pointer border-shu/40 bg-surface text-shu hover:border-shu hover:bg-shu-soft'
-                }`}
-              >
-                <Trash2 size={14} />
-                Delete "{section.name}" section
-              </button>
-              {board.sections.length <= 1 && (
-                <div className="mt-2 font-mono text-[11px] text-stone">At least one section must remain.</div>
               )}
             </section>
           </aside>

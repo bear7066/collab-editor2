@@ -40,6 +40,10 @@ export class MemoryDocStore implements DocStore {
     return 'renamed';
   }
 
+  async deleteDocument(id: string): Promise<boolean> {
+    return this.documents.delete(id);
+  }
+
   async appendUpdate(id: string, update: Uint8Array) {
     const document = this.require(id);
     document.rows.push({ id: this.nextRowId++, data: update });
