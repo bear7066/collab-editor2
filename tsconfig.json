@@ -4,7 +4,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "types": [
-      "bun"
+      "bun",
+      "node"
     ],
     "strict": true,
     "noUnusedLocals": true,

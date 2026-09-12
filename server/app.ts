@@ -10,6 +10,7 @@ import {
 } from './auth.js';
 import type { DocKind, DocStore } from './docStore.js';
 import { BadRequestError, parseDocRef, syncDocument } from './sync.js';
+import { Buffer } from 'node:buffer';
 
 export interface AuthConfig {
   authSecret: string;

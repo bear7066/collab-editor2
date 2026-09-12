@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 /**
  * Stateless session tokens and the small request-parsing helpers the auth
  * endpoints need. Tokens are `base64url(payload).base64url(HMAC-SHA256)`.

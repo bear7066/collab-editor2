@@ -1,5 +1,6 @@
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
 import type { DocKind, DocStore, DocSummary } from './docStore.js';
+import { Buffer } from 'node:buffer';
 
 // Binary data crosses the driver as hex in and base64 out, so behaviour does
 // not depend on how the HTTP driver serialises bytea parameters.
