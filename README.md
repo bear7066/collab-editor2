@@ -58,7 +58,7 @@ For each, note the Client ID and generate a Client secret. If you don't have a d
    | `DATABASE_URL` | Neon `main` branch connection string |
    | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | production OAuth app |
    | `AUTH_SECRET` | output of `openssl rand -base64 32` |
-   | `ALLOWED_GITHUB_IDS` | `86918643` (comma-separate to add more) |
+   | `ALLOWED_GITHUB_IDS` | `86918643,99878260,91186819` (bear7066, THChou1220, GNITOAHC) |
 
 3. Redeploy, open the site, and sign in with GitHub.
 
