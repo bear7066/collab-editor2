@@ -13,7 +13,7 @@ type AuthState =
   | { status: 'signedIn'; user: AuthUser }
   | { status: 'signedOut' }
   | { status: 'denied' }
-  | { status: 'error' };
+  | { status: 'error'; detail?: string };
 
 interface AuthContextValue {
   user: AuthUser;
@@ -40,7 +40,15 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
       const response = await fetch('/api/auth/me', { credentials: 'same-origin' });
       if (response.status === 401) setState({ status: 'signedOut' });
       else if (response.ok) setState({ status: 'signedIn', user: await response.json() });
-      else setState({ status: 'error' });
+      else {
+        // A misconfigured server (503) names what is missing; show it instead of
+        // a generic network message. The body never contains secret values.
+        const detail = await response
+          .json()
+          .then((body) => (typeof body?.detail === 'string' ? body.detail : undefined))
+          .catch(() => undefined);
+        setState({ status: 'error', detail });
+      }
     } catch {
       setState({ status: 'error' });
     }
@@ -78,5 +86,11 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
-  return <LoginPage variant={state.status} onRetry={checkSession} />;
+  return (
+    <LoginPage
+      variant={state.status}
+      detail={state.status === 'error' ? state.detail : undefined}
+      onRetry={checkSession}
+    />
+  );
 };

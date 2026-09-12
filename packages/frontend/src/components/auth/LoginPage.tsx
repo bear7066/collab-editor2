@@ -3,6 +3,8 @@ import { Github } from 'lucide-react';
 
 interface LoginPageProps {
   variant: 'signedOut' | 'denied' | 'error';
+  /** Server-provided reason, e.g. which environment variables are missing. */
+  detail?: string;
   onRetry: () => void;
 }
 
@@ -11,7 +13,7 @@ const signIn = () => {
   window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
 };
 
-export const LoginPage: React.FC<LoginPageProps> = ({ variant, onRetry }) => (
+export const LoginPage: React.FC<LoginPageProps> = ({ variant, detail, onRetry }) => (
   <main className="flex min-h-screen items-center justify-center bg-paper px-6 text-ink">
     <div className="w-full max-w-sm text-center">
       <h1 className="mb-3 flex items-center justify-center gap-3 font-serif text-3xl font-semibold tracking-wide">
@@ -30,7 +32,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ variant, onRetry }) => (
         </p>
       )}
       {variant === 'error' && (
-        <p className="mb-10 text-sm leading-6 text-stone">Could not reach the server. Check your connection.</p>
+        <div className="mb-10">
+          <p className="text-sm leading-6 text-stone">
+            {detail ? 'The server is not configured yet.' : 'Could not reach the server. Check your connection.'}
+          </p>
+          {detail && (
+            <p className="mt-3 rounded-lg border border-line bg-surface px-3 py-2 font-mono text-xs leading-5 text-shu">
+              {detail}
+            </p>
+          )}
+        </div>
       )}
 
       {variant === 'error' ? (
