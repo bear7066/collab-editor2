@@ -52,6 +52,32 @@ export function createDeps(env: Env): AppDeps {
   };
 }
 
+/**
+ * Turns a database failure into a safe one-line explanation. Only the shape of
+ * the problem is reported — never the connection string, credentials or the
+ * driver's raw message, which can carry both.
+ */
+function describeDatabaseError(error: unknown): string | null {
+  const codes = new Set<string>();
+  const messages: string[] = [];
+  let current: unknown = error;
+  for (let depth = 0; current instanceof Error && depth < 3; depth += 1) {
+    const code = (current as { code?: unknown }).code;
+    if (typeof code === 'string') codes.add(code);
+    messages.push(current.message);
+    current = (current as { cause?: unknown }).cause;
+  }
+
+  if (codes.has('42P01')) return 'the database schema is missing: run "bun run db:migrate" against DATABASE_URL';
+  if (codes.has('28P01') || codes.has('28000') || codes.has('3D000')) {
+    return 'the database rejected the connection: check DATABASE_URL';
+  }
+  if (codes.has('ENOTFOUND') || codes.has('ECONNREFUSED') || messages.some((m) => /fetch failed|getaddrinfo/i.test(m))) {
+    return 'the database could not be reached: check DATABASE_URL';
+  }
+  return null;
+}
+
 let cachedDeps: AppDeps | null = null;
 
 /** Adapts a route to Vercel's Web fetch handler export, reusing deps across warm invocations. */
@@ -66,7 +92,10 @@ export const vercelHandler = (route: Route, env: Env = process.env) => ({
       if (error instanceof ConfigurationError) {
         return Response.json({ error: 'Server is not configured', detail: error.detail }, { status: 503 });
       }
-      return Response.json({ error: 'Internal server error' }, { status: 500 });
+      const detail = describeDatabaseError(error);
+      return Response.json(detail ? { error: 'Internal server error', detail } : { error: 'Internal server error' }, {
+        status: 500,
+      });
     }
   },
 });

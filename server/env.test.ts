@@ -62,6 +62,36 @@ describe('vercelHandler', () => {
     expect(body.detail).toContain('AUTH_SECRET');
   });
 
+  test('explains a missing database schema without leaking connection details', async () => {
+    const undefinedTable = Object.assign(new Error('relation "documents" does not exist'), {
+      code: '42P01',
+      connectionString: 'postgresql://user:hunter2@db.neon.tech/main',
+    });
+    const handler = vercelHandler(
+      async () => {
+        throw undefinedTable;
+      },
+      { ...base, DATABASE_URL: 'postgresql://user:hunter2@db.neon.tech/main' }
+    );
+
+    const response = await handler.fetch(new Request('https://example.com/api/boards'));
+    const body = await response.json();
+    expect(response.status).toBe(500);
+    expect(body.detail).toMatch(/db:migrate/);
+    expect(JSON.stringify(body)).not.toContain('hunter2');
+  });
+
+  test('explains an unreachable database', async () => {
+    const handler = vercelHandler(
+      async () => {
+        throw Object.assign(new Error('password authentication failed for user "user"'), { code: '28P01' });
+      },
+      { ...base, DATABASE_URL: 'postgresql://user:hunter2@db.neon.tech/main' }
+    );
+    const body = await (await handler.fetch(new Request('https://example.com/api/boards'))).json();
+    expect(body.detail).toMatch(/DATABASE_URL/);
+  });
+
   test('keeps other failures generic', async () => {
     const boom = async () => {
       throw new Error('secret-bearing failure');
