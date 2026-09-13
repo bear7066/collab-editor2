@@ -91,7 +91,7 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
   )}`;
 
   return (
-    <section className="rounded-xl border border-line bg-surface p-4">
+    <section className="rounded-xl border border-line bg-surface p-3 sm:p-4">
       <div className="mb-4 flex items-center justify-between gap-2">
         <div>
           <h2 className="font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">Weekly calendar</h2>
@@ -114,16 +114,19 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
         </div>
       </div>
 
-      <div className="overflow-x-auto pb-1">
-        <div className="min-w-[540px]">
-          <div className="grid grid-cols-[44px_repeat(7,minmax(0,1fr))] border-b border-line pb-2">
+      <div className="overflow-hidden pb-1" style={{ touchAction: 'pan-y' }}>
+        <div className="w-full min-w-0">
+          <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))] border-b border-line pb-2 sm:grid-cols-[44px_repeat(7,minmax(0,1fr))]">
             <div />
             {dates.map((date, index) => {
               const key = dateKeys[index];
               return (
                 <div key={key} className={`text-center ${key === todayKey ? 'text-ai' : 'text-stone'}`}>
-                  <div className="font-label text-[9px] font-semibold tracking-wide">{WEEKDAY_LABELS[index]}</div>
-                  <div className={`mx-auto mt-1 flex h-6 w-6 items-center justify-center rounded-full text-xs ${key === todayKey ? 'bg-ai text-white' : 'text-ink-soft'}`}>
+                  <div className="font-label text-[8px] font-semibold tracking-wide sm:text-[9px]">
+                    <span className="sm:hidden">{WEEKDAY_LABELS[index][0]}</span>
+                    <span className="hidden sm:inline">{WEEKDAY_LABELS[index]}</span>
+                  </div>
+                  <div className={`mx-auto mt-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] sm:h-6 sm:w-6 sm:text-xs ${key === todayKey ? 'bg-ai text-white' : 'text-ink-soft'}`}>
                     {date.getDate()}
                   </div>
                 </div>
@@ -132,9 +135,9 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
           </div>
 
           <div className="relative flex" style={{ height: gridHeight }}>
-            <div className="relative w-11 shrink-0">
+            <div className="relative w-[34px] shrink-0 sm:w-11">
               {hours.map((hour, index) => (
-                <span key={hour} className="absolute right-2 -translate-y-1/2 font-label text-[9px] text-stone-light" style={{ top: index * 60 * MINUTE_HEIGHT }}>
+                <span key={hour} className="absolute right-1 -translate-y-1/2 font-label text-[8px] text-stone-light sm:right-2 sm:text-[9px]" style={{ top: index * 60 * MINUTE_HEIGHT }}>
                   {pad2(hour)}:00
                 </span>
               ))}
@@ -150,7 +153,7 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
                     return (
                       <div
                         key={id}
-                        className={`absolute overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 shadow-sm ${EVENT_CLASS[entry.task.flag!]} ${completion ? 'opacity-50' : ''}`}
+                        className={`absolute overflow-hidden rounded-sm border-l-2 px-0.5 py-1 shadow-sm sm:rounded-md sm:border-l-[3px] sm:px-1.5 ${EVENT_CLASS[entry.task.flag!]} ${completion ? 'opacity-50' : ''}`}
                         style={{
                           top: (start - dayStart) * MINUTE_HEIGHT + 2,
                           height: Math.max(24, (end - start) * MINUTE_HEIGHT - 4),
@@ -159,8 +162,8 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
                         }}
                         title={`${entry.task.text}\n${entry.task.recur?.startTime ?? '09:00'}–${entry.task.recur?.endTime ?? '10:00'}\n${entry.crumb.join(' > ')}`}
                       >
-                        <div className={`text-[9px] font-semibold leading-tight [overflow-wrap:anywhere] ${completion ? 'line-through' : ''}`}>{entry.task.text}</div>
-                        <div className="mt-0.5 font-label text-[8px] leading-tight opacity-80 [overflow-wrap:anywhere]">
+                        <div className={`text-[8px] font-semibold leading-tight [overflow-wrap:anywhere] sm:text-[9px] ${completion ? 'line-through' : ''}`}>{entry.task.text}</div>
+                        <div className="mt-0.5 hidden font-label text-[8px] leading-tight opacity-80 [overflow-wrap:anywhere] sm:block">
                           {entry.task.recur?.startTime ?? '09:00'}–{entry.task.recur?.endTime ?? '10:00'}
                         </div>
                         {entry.task.recur && <Repeat size={9} className="absolute bottom-1 right-1 opacity-70" aria-label="Repeats weekly" />}
