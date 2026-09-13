@@ -33,14 +33,12 @@
 
   --color-on-moss:      #ffffff;   /* text on filled moss buttons */
 
-  /*
-   * Traffic-light trio for the calendar tag, deliberately more saturated than
-   * the muted zen accents above — this one has to read as "red/yellow/green"
-   * at a glance, not as a themed accent colour.
-   */
+  /* Calendar tags, more saturated than the muted zen accents above. */
   --color-flag-red:     #d6503f;
   --color-flag-yellow:  #dfac2e;
   --color-flag-green:   #4f9d5e;
+  --color-flag-blue:    #4775b8;
+  --color-flag-pink:    #b84f7c;
 
   /* Iansui only ships one weight (400); font-semibold/font-bold on it are a
      browser-synthesized bold, not a true weight — checked and it reads fine. */
@@ -102,10 +100,12 @@
   --color-shu:          #d98a74;
   --color-shu-soft:     #3a2621;
 
-  /* Brightened so the traffic-light trio still reads clearly against ink. */
+  /* Brightened so calendar tags still read clearly against ink. */
   --color-flag-red:     #e37060;
   --color-flag-yellow:  #f0c15a;
   --color-flag-green:   #7fbe86;
+  --color-flag-blue:    #6893d0;
+  --color-flag-pink:    #cf6794;
 
   --color-on-moss:      #1c1f1d;
 }

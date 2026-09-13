@@ -114,6 +114,25 @@ describe('colorsByDate', () => {
     expect(colorsByDate(entries)).toEqual(new Map([['2026-09-20', 'green']]));
   });
 
+  test('supports blue and pink flags', () => {
+    const entries = collectFlaggedTasks([
+      section({
+        groups: [{
+          id: 'g1',
+          owner: 'Harry',
+          tasks: [
+            task({ id: 'blue', date: '2026-09-20', flag: 'blue' }),
+            task({ id: 'pink', date: '2026-09-21', flag: 'pink' }),
+          ],
+        }],
+      }),
+    ]);
+    expect(colorsByDate(entries)).toEqual(new Map([
+      ['2026-09-20', 'blue'],
+      ['2026-09-21', 'pink'],
+    ]));
+  });
+
   test('a date with mixed flags shows the worst one', () => {
     const entries = collectFlaggedTasks([
       section({

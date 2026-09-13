@@ -58,9 +58,9 @@ export const isValidDateString = (value: string): boolean => {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 };
 
-const FLAG_SEVERITY: Record<FlagColor, number> = { red: 3, yellow: 2, green: 1 };
+const FLAG_SEVERITY: Record<FlagColor, number> = { red: 5, yellow: 4, green: 3, blue: 2, pink: 1 };
 
-/** The most severe flag in the list (red > yellow > green), or null if empty. */
+/** The highest-priority flag in the list, or null if empty. */
 export const worstFlag = (flags: FlagColor[]): FlagColor | null =>
   flags.reduce<FlagColor | null>((worst, flag) => (!worst || FLAG_SEVERITY[flag] > FLAG_SEVERITY[worst] ? flag : worst), null);
 

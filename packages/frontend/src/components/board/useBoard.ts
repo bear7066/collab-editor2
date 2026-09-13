@@ -27,8 +27,8 @@ import {
 } from './boardModel';
 import type { BoardState, FlagColor, PendingFinishStatus, RecurrenceRule } from './types';
 
-/** Click order for the flag dot: unflagged -> red -> yellow -> green -> unflagged. */
-const FLAG_CYCLE: (FlagColor | null)[] = [null, 'red', 'yellow', 'green'];
+/** Click order for the flag dot. */
+const FLAG_CYCLE: (FlagColor | null)[] = [null, 'red', 'yellow', 'green', 'blue', 'pink'];
 
 export const useBoard = (boardName: string) => {
   const { doc, provider, status: syncStatus, synced } = useSyncedDoc('board', boardName);

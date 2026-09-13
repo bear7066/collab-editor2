@@ -199,7 +199,7 @@ export const Board: React.FC = () => {
             className={`mt-1 h-3.5 w-3.5 shrink-0 rounded-full border transition cursor-pointer ${
               task.flag ? `${FLAG_FILL_CLASS[task.flag]} border-transparent` : 'border-line-strong hover:border-stone'
             }`}
-            title={task.flag ? `Calendar tag: ${task.flag}. Click to change.` : 'Add a calendar tag (red/yellow/green)'}
+            title={task.flag ? `Calendar tag: ${task.flag}. Click to change.` : 'Add a calendar tag (red/yellow/green/blue/pink)'}
             aria-label={task.flag ? `Calendar tag: ${task.flag}` : 'Add a calendar tag'}
           />
 

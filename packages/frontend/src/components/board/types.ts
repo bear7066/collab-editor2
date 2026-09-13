@@ -1,7 +1,7 @@
 export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'cancelled';
 export type PendingFinishStatus = 'done' | 'cancelled';
-/** Calendar tag; only three levels, worst-wins when a day has several. */
-export type FlagColor = 'red' | 'yellow' | 'green';
+/** Calendar tag color; priority follows the order defined in boardModel. */
+export type FlagColor = 'red' | 'yellow' | 'green' | 'blue' | 'pink';
 
 /** Fires weekly on `weekday` (0 = Sunday, matching Date.getDay()), from `startDate` on. */
 export interface RecurrenceRule {

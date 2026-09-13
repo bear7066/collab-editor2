@@ -2,10 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Repeat } from 'lucide-react';
 import type { RecurrenceRule } from './types';
 
-const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F'];
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 /** Monday-first display index -> Date.getDay() weekday (0 = Sunday). */
-const JS_WEEKDAY = [1, 2, 3, 4, 5, 6, 0];
+const JS_WEEKDAY = [1, 2, 3, 4, 5];
+
+const workdayOrMonday = (weekday: number | undefined) =>
+  weekday !== undefined && weekday >= 1 && weekday <= 5 ? weekday : 1;
 
 interface RecurrencePickerProps {
   recur: RecurrenceRule | null;
@@ -15,14 +18,14 @@ interface RecurrencePickerProps {
 /** Weekly schedule editor: weekday plus a wall-clock start/end time. */
 export const RecurrencePicker: React.FC<RecurrencePickerProps> = ({ recur, onChange }) => {
   const [open, setOpen] = useState(false);
-  const [weekday, setWeekday] = useState(recur?.weekday ?? 1);
+  const [weekday, setWeekday] = useState(workdayOrMonday(recur?.weekday));
   const [startTime, setStartTime] = useState(recur?.startTime ?? '09:00');
   const [endTime, setEndTime] = useState(recur?.endTime ?? '10:00');
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!open) return;
-    setWeekday(recur?.weekday ?? 1);
+    setWeekday(workdayOrMonday(recur?.weekday));
     setStartTime(recur?.startTime ?? '09:00');
     setEndTime(recur?.endTime ?? '10:00');
     setError('');

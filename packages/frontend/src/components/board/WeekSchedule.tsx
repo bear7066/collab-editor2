@@ -6,11 +6,14 @@ import type { BoardSection, FlagColor } from './types';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MINUTE_HEIGHT = 0.8;
-const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const WORKDAY_COUNT = 5;
+const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
 const EVENT_CLASS: Record<FlagColor, string> = {
   red: 'border-flag-red bg-flag-red/85 text-white',
   yellow: 'border-flag-yellow bg-flag-yellow/85 text-ink',
   green: 'border-flag-green bg-flag-green/85 text-white',
+  blue: 'border-flag-blue bg-flag-blue/85 text-white',
+  pink: 'border-flag-pink bg-flag-pink/85 text-white',
 };
 
 const pad2 = (value: number) => String(value).padStart(2, '0');
@@ -44,10 +47,10 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
   const [weekOffset, setWeekOffset] = useState(0);
   const today = new Date();
   const weekStart = mondayOf(new Date(today.getTime() + weekOffset * 7 * DAY_MS));
-  const dates = Array.from({ length: 7 }, (_, index) => new Date(weekStart.getTime() + index * DAY_MS));
+  const dates = Array.from({ length: WORKDAY_COUNT }, (_, index) => new Date(weekStart.getTime() + index * DAY_MS));
   const dateKeys = dates.map(formatDateKey);
   const rangeStart = dateKeys[0];
-  const rangeEnd = dateKeys[6];
+  const rangeEnd = dateKeys[WORKDAY_COUNT - 1];
   const todayKey = formatDateKey(today);
 
   const entries = useMemo(() => {
@@ -74,7 +77,7 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
 
   const positionedByDay = useMemo(
     () =>
-      Array.from({ length: 7 }, (_, day) => {
+      Array.from({ length: WORKDAY_COUNT }, (_, day) => {
         const dayEvents = events.filter((event) => event.day === day);
         const layout = layoutOverlappingEvents(dayEvents.map(({ id, start, end }) => ({ id, start, end })));
         return layout.map((position) => ({
@@ -85,7 +88,7 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
     [events]
   );
 
-  const weekLabel = `${dates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${dates[6].toLocaleDateString(
+  const weekLabel = `${dates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${dates[WORKDAY_COUNT - 1].toLocaleDateString(
     'en-US',
     { month: 'short', day: 'numeric', year: 'numeric' }
   )}`;
@@ -116,7 +119,7 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
 
       <div className="overflow-hidden pb-1" style={{ touchAction: 'pan-y' }}>
         <div className="w-full min-w-0">
-          <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))] border-b border-line pb-2 sm:grid-cols-[44px_repeat(7,minmax(0,1fr))]">
+          <div className="grid grid-cols-[34px_repeat(5,minmax(0,1fr))] border-b border-line pb-2 sm:grid-cols-[44px_repeat(5,minmax(0,1fr))]">
             <div />
             {dates.map((date, index) => {
               const key = dateKeys[index];
@@ -142,7 +145,7 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
                 </span>
               ))}
             </div>
-            <div className="relative grid min-w-0 flex-1 grid-cols-7 border-l border-line">
+            <div className="relative grid min-w-0 flex-1 grid-cols-5 border-l border-line">
               {hours.map((hour, index) => (
                 <div key={hour} className="pointer-events-none absolute left-0 right-0 border-t border-line" style={{ top: index * 60 * MINUTE_HEIGHT }} />
               ))}
@@ -178,7 +181,7 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
       </div>
       {events.length === 0 && (
         <p className="mt-3 text-xs leading-5 text-stone">
-          Add a red, yellow, or green tag and set a date or weekly schedule to place an item here.
+          Add a colored tag and set a date or weekly schedule to place an item here.
         </p>
       )}
     </section>
