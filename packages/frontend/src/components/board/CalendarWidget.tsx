@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Repeat, X } from 'lucide-react';
 import { FLAG_FILL_CLASS } from './constants';
-import { colorsByDate, collectFlaggedTasks } from './boardModel';
+import { colorsByDate, collectFlaggedTasks, collectRecurringOccurrences } from './boardModel';
 import type { BoardSection, FlagColor } from './types';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -25,11 +25,19 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ sections }) => {
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const flaggedTasks = useMemo(() => collectFlaggedTasks(sections), [sections]);
-  const colors = useMemo(() => colorsByDate(flaggedTasks), [flaggedTasks]);
-
   const firstOfMonth = new Date(cursor.year, cursor.month, 1);
   const daysInMonth = new Date(cursor.year, cursor.month + 1, 0).getDate();
+  const monthStartKey = dateKey(cursor.year, cursor.month, 1);
+  const monthEndKey = dateKey(cursor.year, cursor.month, daysInMonth);
+
+  // One-off dated tasks plus every occurrence a recurring task has within the
+  // visible month — the rule itself is never stored as individual dates.
+  const flaggedTasks = useMemo(
+    () => [...collectFlaggedTasks(sections), ...collectRecurringOccurrences(sections, monthStartKey, monthEndKey)],
+    [sections, monthStartKey, monthEndKey]
+  );
+  const colors = useMemo(() => colorsByDate(flaggedTasks), [flaggedTasks]);
+
   // getDay() is Sunday-first (0-6); shift so Monday lands at column 0,
   // matching the M T W T F S S header below.
   const leadingBlanks = (firstOfMonth.getDay() + 6) % 7;
@@ -49,7 +57,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ sections }) => {
       return { year: current.year, month: next };
     });
 
-  const tasksOnSelectedDate = selectedDate ? flaggedTasks.filter((entry) => entry.task.date === selectedDate) : [];
+  const tasksOnSelectedDate = selectedDate ? flaggedTasks.filter((entry) => entry.date === selectedDate) : [];
 
   return (
     <section className="rounded-xl border border-line bg-surface p-4">
@@ -117,11 +125,14 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ sections }) => {
             <div className="text-xs text-stone-light">No tagged items.</div>
           ) : (
             <ul className="space-y-1.5">
-              {tasksOnSelectedDate.map(({ task, crumb }) => (
-                <li key={task.id} className="flex items-start gap-2 text-xs">
+              {tasksOnSelectedDate.map(({ task, date, crumb }) => (
+                <li key={`${task.id}_${date}`} className="flex items-start gap-2 text-xs">
                   <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${FLAG_FILL_CLASS[task.flag as FlagColor]}`} aria-hidden="true" />
                   <div className="min-w-0">
-                    <div className="truncate text-ink-soft">{task.text}</div>
+                    <div className="flex items-center gap-1.5 truncate text-ink-soft">
+                      {task.text}
+                      {task.recur && <Repeat size={10} className="shrink-0 text-stone-light" aria-label="Repeats weekly" />}
+                    </div>
                     <div className="truncate font-label text-[10px] text-stone-light">{crumb.join(' > ')}</div>
                   </div>
                 </li>

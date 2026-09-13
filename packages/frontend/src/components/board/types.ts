@@ -3,6 +3,12 @@ export type PendingFinishStatus = 'done' | 'cancelled';
 /** Calendar tag; only three levels, worst-wins when a day has several. */
 export type FlagColor = 'red' | 'yellow' | 'green';
 
+/** Fires weekly on `weekday` (0 = Sunday, matching Date.getDay()), from `startDate` on. */
+export interface RecurrenceRule {
+  weekday: number;
+  startDate: string;
+}
+
 export interface BoardTask {
   id: string;
   text: string;
@@ -13,10 +19,18 @@ export interface BoardTask {
   completedAt: string | null;
   /**
    * ISO calendar date (YYYY-MM-DD), or absent on tasks created before this
-   * field existed — read as null, never as a crash.
+   * field existed — read as null, never as a crash. Ignored when `recur` is
+   * set; a recurring task's dates come from expanding the rule instead.
    */
   date?: string | null;
   flag?: FlagColor | null;
+  recur?: RecurrenceRule | null;
+  /**
+   * Per-occurrence completion for a recurring task, keyed by that
+   * occurrence's date — never by task.status, so finishing this week's
+   * instance does not affect next week's. Absent on non-recurring tasks.
+   */
+  recurCompletions?: Record<string, 'done' | 'cancelled'>;
   children: BoardTask[];
 }
 

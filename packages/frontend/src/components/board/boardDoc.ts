@@ -74,6 +74,8 @@ export const createTaskMap = (text: string): YBoardMap => {
   task.set('completedAt', null);
   task.set('date', null);
   task.set('flag', null);
+  task.set('recur', null);
+  task.set('recurCompletions', {});
   task.set('children', new Y.Array<YBoardMap>());
   return task;
 };

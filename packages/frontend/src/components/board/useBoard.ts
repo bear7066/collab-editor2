@@ -19,11 +19,13 @@ import {
   collectArchive,
   countTasks,
   createId,
+  currentOccurrenceDate,
   findSection,
   findTaskInSection,
   isValidDateString,
+  todayDateKey,
 } from './boardModel';
-import type { BoardState, FlagColor, PendingFinishStatus } from './types';
+import type { BoardState, FlagColor, PendingFinishStatus, RecurrenceRule } from './types';
 
 /** Click order for the flag dot: unflagged -> red -> yellow -> green -> unflagged. */
 const FLAG_CYCLE: (FlagColor | null)[] = [null, 'red', 'yellow', 'green'];
@@ -108,6 +110,21 @@ export const useBoard = (boardName: string) => {
         if (!sectionMap) return;
         const found = findTaskMapInSection(sectionMap, taskId);
         if (!found) return;
+
+        const recur = (found.task.get('recur') as RecurrenceRule | null) ?? null;
+        if (recur) {
+          // Recurring tasks never move to status/archive — completion is
+          // tracked per occurrence date instead, so next week starts fresh.
+          const occurrence = currentOccurrenceDate(recur, todayDateKey());
+          const completions = { ...((found.task.get('recurCompletions') as Record<string, PendingFinishStatus>) ?? {}) };
+          // Confirming the same status twice undoes it — the only way back to
+          // "not done" for a task that never reaches the archive to restore from.
+          if (completions[occurrence] === status) delete completions[occurrence];
+          else completions[occurrence] = status;
+          found.task.set('recurCompletions', completions);
+          return;
+        }
+
         found.task.set('status', status);
         found.task.set('completedAt', new Date().toISOString());
         if (status === 'done') found.task.set('percent', 100);
@@ -248,6 +265,27 @@ export const useBoard = (boardName: string) => {
         const current = (found.task.get('flag') as FlagColor | null) ?? null;
         const next = FLAG_CYCLE[(FLAG_CYCLE.indexOf(current) + 1) % FLAG_CYCLE.length];
         found.task.set('flag', next);
+      });
+    },
+    [currentSectionId, updateBoard]
+  );
+
+  const setRecurrence = useCallback(
+    (taskId: string, weekday: number | null) => {
+      updateBoard((ydoc) => {
+        const sectionMap = findSectionMap(ydoc, currentSectionId);
+        if (!sectionMap) return;
+        const found = findTaskMapInSection(sectionMap, taskId);
+        if (!found) return;
+
+        if (weekday === null) {
+          found.task.set('recur', null);
+          return;
+        }
+        // Keep the existing start date across a weekday change, so it never
+        // moves backward and silently invents occurrences that never happened.
+        const existing = found.task.get('recur') as RecurrenceRule | null;
+        found.task.set('recur', { weekday, startDate: existing?.startDate ?? todayDateKey() });
       });
     },
     [currentSectionId, updateBoard]
@@ -455,6 +493,7 @@ export const useBoard = (boardName: string) => {
     setCurrentSectionId,
     setDrafts,
     setNewGroupName,
+    setRecurrence,
     startFinishLongPress,
     submitAdd,
     syncStatus,

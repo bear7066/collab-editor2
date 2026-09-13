@@ -15,9 +15,10 @@ import {
   Video,
   X,
 } from 'lucide-react';
-import { activeChildren, countActive } from './board/boardModel';
+import { activeChildren, countActive, currentOccurrenceDate, todayDateKey } from './board/boardModel';
 import { ARCHIVE_SCROLL_THRESHOLD, FLAG_FILL_CLASS, displayAccent, formatShortDate } from './board/constants';
 import { CalendarWidget } from './board/CalendarWidget';
+import { RecurrencePicker } from './board/RecurrencePicker';
 import MeetingLogEditor from './board/MeetingLogEditor';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { ThemeToggle } from './ThemeToggle';
@@ -62,6 +63,7 @@ export const Board: React.FC = () => {
     setCurrentSectionId,
     setDrafts,
     setNewGroupName,
+    setRecurrence,
     startFinishLongPress,
     submitAdd,
     syncStatus,
@@ -112,6 +114,10 @@ export const Board: React.FC = () => {
     const key = `task_${task.id}`;
     const children = activeChildren(task.children);
     const pendingStatus = pendingFinish[task.id];
+    // A recurring task never reaches status/archive; its checkbox instead
+    // reflects whether the current occurrence has been confirmed done/cancelled.
+    const recurStatus = task.recur ? task.recurCompletions?.[currentOccurrenceDate(task.recur, todayDateKey())] : undefined;
+    const displayStatus = pendingStatus ?? recurStatus;
 
     return (
       <div key={task.id} className={depth > 0 ? 'mt-1' : 'mt-1.5'}>
@@ -128,18 +134,22 @@ export const Board: React.FC = () => {
             onPointerLeave={clearFinishPressTimer}
             onPointerCancel={clearFinishPressTimer}
             className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition cursor-pointer ${
-              pendingStatus
-                ? pendingStatus === 'done'
+              displayStatus
+                ? displayStatus === 'done'
                   ? 'border-moss bg-moss-soft text-moss-deep'
                   : 'border-shu/60 bg-shu-soft text-shu'
                 : 'border-line-strong bg-surface text-stone-light hover:border-stone hover:text-ink-soft'
             }`}
-            title="Click to choose V or X, then long press to archive."
-            aria-label="Click to choose done or cancelled, then long press to archive."
+            title={
+              task.recur
+                ? 'Click to choose V or X, then long press to confirm this week.'
+                : 'Click to choose V or X, then long press to archive.'
+            }
+            aria-label={task.recur ? 'Click to choose done or cancelled for this occurrence.' : 'Click to choose done or cancelled, then long press to archive.'}
           >
-            {pendingStatus === 'done' ? (
+            {displayStatus === 'done' ? (
               <Check size={14} strokeWidth={2.6} />
-            ) : pendingStatus === 'cancelled' ? (
+            ) : displayStatus === 'cancelled' ? (
               <X size={14} strokeWidth={2.6} />
             ) : (
               <Circle size={10} />
@@ -192,6 +202,8 @@ export const Board: React.FC = () => {
             title={task.flag ? `Calendar tag: ${task.flag}. Click to change.` : 'Add a calendar tag (red/yellow/green)'}
             aria-label={task.flag ? `Calendar tag: ${task.flag}` : 'Add a calendar tag'}
           />
+
+          <RecurrencePicker recur={task.recur ?? null} onChange={(weekday) => setRecurrence(task.id, weekday)} />
 
           <div className="mt-0.5 flex shrink-0 items-center gap-0.5 opacity-70 transition hover:opacity-100">
             <button

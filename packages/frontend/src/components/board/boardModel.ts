@@ -1,4 +1,4 @@
-import type { ArchiveEntry, BoardSection, BoardState, BoardTask, FlagColor } from './types';
+import type { ArchiveEntry, BoardSection, BoardState, BoardTask, FlagColor, RecurrenceRule } from './types';
 
 export const createId = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -66,20 +66,24 @@ export const worstFlag = (flags: FlagColor[]): FlagColor | null =>
 
 export interface FlaggedTask {
   task: BoardTask;
+  /** The specific calendar date this entry represents — a one-off task's own
+   * date, or (for a recurring task) one expanded occurrence. */
+  date: string;
   /** [section name, group owner] — enough to place the task without re-searching the board. */
   crumb: string[];
 }
 
 /**
- * Every task or subtask across the whole board (all sections, not just the
- * open one) that carries both a date and a flag — the calendar only shows
- * color, so a task missing either half of that pair has nothing to plot.
+ * Every non-recurring task or subtask across the whole board (all sections,
+ * not just the open one) that carries both a date and a flag — the calendar
+ * only shows color, so a task missing either half of that pair has nothing
+ * to plot. Recurring tasks are handled by collectRecurringOccurrences instead.
  */
 export const collectFlaggedTasks = (sections: BoardSection[]): FlaggedTask[] => {
   const out: FlaggedTask[] = [];
   const walk = (tasks: BoardTask[], crumb: string[]) => {
     for (const task of tasks) {
-      if (task.date && task.flag) out.push({ task, crumb });
+      if (task.date && task.flag && !task.recur) out.push({ task, date: task.date, crumb });
       if (task.children.length > 0) walk(task.children, crumb);
     }
   };
@@ -92,8 +96,7 @@ export const collectFlaggedTasks = (sections: BoardSection[]): FlaggedTask[] => 
 /** Date -> worst flag among tasks due that day, for coloring calendar cells. */
 export const colorsByDate = (flaggedTasks: FlaggedTask[]): Map<string, FlagColor> => {
   const byDate = new Map<string, FlagColor[]>();
-  for (const { task } of flaggedTasks) {
-    const date = task.date as string;
+  for (const { date, task } of flaggedTasks) {
     const list = byDate.get(date) ?? [];
     list.push(task.flag as FlagColor);
     byDate.set(date, list);
@@ -104,4 +107,82 @@ export const colorsByDate = (flaggedTasks: FlaggedTask[]): Map<string, FlagColor
     if (worst) result.set(date, worst);
   }
   return result;
+};
+
+/** Today's calendar date in the viewer's local time zone (not UTC), as YYYY-MM-DD. */
+export const todayDateKey = (): string => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Calendar-date strings carry no time zone, so all arithmetic on them runs in
+// UTC — using the local zone would let a date silently drift near midnight.
+const parseDateUTC = (date: string) => {
+  const [year, month, day] = date.split('-').map(Number);
+  return Date.UTC(year, month - 1, day);
+};
+const formatDateUTC = (ms: number) => {
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+};
+
+/** The first date on/after `from` that matches the rule's weekday and is on/after its startDate. */
+const firstOccurrenceOnOrAfter = (recur: RecurrenceRule, from: string): string => {
+  const fromMs = Math.max(parseDateUTC(from), parseDateUTC(recur.startDate));
+  const weekday = new Date(fromMs).getUTCDay();
+  const daysToAdd = (recur.weekday - weekday + 7) % 7;
+  return formatDateUTC(fromMs + daysToAdd * DAY_MS);
+};
+
+/** Every date (YYYY-MM-DD) in [rangeStart, rangeEnd] (inclusive) where the rule fires. */
+export const occurrencesInRange = (recur: RecurrenceRule, rangeStart: string, rangeEnd: string): string[] => {
+  const endMs = parseDateUTC(rangeEnd);
+  const results: string[] = [];
+  for (let cursor = parseDateUTC(firstOccurrenceOnOrAfter(recur, rangeStart)); cursor <= endMs; cursor += 7 * DAY_MS) {
+    results.push(formatDateUTC(cursor));
+  }
+  return results;
+};
+
+/**
+ * The occurrence "belonging to now": the most recent matching date on or
+ * before `today`, or the first occurrence if the rule has not fired yet.
+ * Because completion is tracked per exact date, a new week's occurrence is
+ * automatically unfinished — nothing needs to reset it.
+ */
+export const currentOccurrenceDate = (recur: RecurrenceRule, today: string): string => {
+  const todayMs = parseDateUTC(today);
+  const startMs = parseDateUTC(recur.startDate);
+  if (todayMs < startMs) return firstOccurrenceOnOrAfter(recur, recur.startDate);
+
+  const weekday = new Date(todayMs).getUTCDay();
+  const daysSince = (weekday - recur.weekday + 7) % 7;
+  const candidateMs = todayMs - daysSince * DAY_MS;
+  return candidateMs >= startMs ? formatDateUTC(candidateMs) : firstOccurrenceOnOrAfter(recur, recur.startDate);
+};
+
+/**
+ * Every recurring, flagged task's occurrences within [rangeStart, rangeEnd] —
+ * the calendar's counterpart to collectFlaggedTasks for one-off dates.
+ */
+export const collectRecurringOccurrences = (
+  sections: BoardSection[],
+  rangeStart: string,
+  rangeEnd: string
+): FlaggedTask[] => {
+  const out: FlaggedTask[] = [];
+  const walk = (tasks: BoardTask[], crumb: string[]) => {
+    for (const task of tasks) {
+      if (task.recur && task.flag) {
+        for (const date of occurrencesInRange(task.recur, rangeStart, rangeEnd)) out.push({ task, date, crumb });
+      }
+      if (task.children.length > 0) walk(task.children, crumb);
+    }
+  };
+  for (const section of sections) {
+    for (const group of section.groups) walk(group.tasks, [section.name, group.owner]);
+  }
+  return out;
 };
