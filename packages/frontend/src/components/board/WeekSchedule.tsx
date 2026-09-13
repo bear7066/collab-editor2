@@ -30,6 +30,13 @@ const mondayOf = (date: Date) => {
   return monday;
 };
 
+/** With weekends hidden, Saturday and Sunday open the upcoming workweek. */
+const defaultWorkweekStart = (date: Date) => {
+  const monday = mondayOf(date);
+  if (date.getDay() === 0 || date.getDay() === 6) monday.setDate(monday.getDate() + 7);
+  return monday;
+};
+
 interface WeekScheduleProps {
   sections: BoardSection[];
 }
@@ -57,7 +64,8 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
   }, []);
 
   const today = new Date();
-  const weekStart = mondayOf(new Date(today.getTime() + weekOffset * 7 * DAY_MS));
+  const weekStart = defaultWorkweekStart(today);
+  weekStart.setDate(weekStart.getDate() + weekOffset * 7);
   const dates = Array.from({ length: WORKDAY_COUNT }, (_, index) => new Date(weekStart.getTime() + index * DAY_MS));
   const dateKeys = dates.map(formatDateKey);
   const rangeStart = dateKeys[0];
