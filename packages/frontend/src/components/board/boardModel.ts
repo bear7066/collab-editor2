@@ -109,6 +109,48 @@ export const colorsByDate = (flaggedTasks: FlaggedTask[]): Map<string, FlagColor
   return result;
 };
 
+export interface TimedLayoutInput {
+  id: string;
+  start: number;
+  end: number;
+}
+
+export interface TimedLayout extends TimedLayoutInput {
+  column: number;
+  columns: number;
+}
+
+/**
+ * Assign side-by-side columns to timed items. Transitive overlaps stay in one
+ * cluster, while items that only touch at an edge may reuse the same column.
+ */
+export const layoutOverlappingEvents = (items: TimedLayoutInput[]): TimedLayout[] => {
+  const sorted = [...items].sort((a, b) => a.start - b.start || a.end - b.end || a.id.localeCompare(b.id));
+  const result: TimedLayout[] = [];
+  let cluster: Array<TimedLayoutInput & { column: number }> = [];
+  let clusterEnd = -Infinity;
+  let activeEnds: number[] = [];
+
+  const flush = () => {
+    const columns = Math.max(1, ...cluster.map((item) => item.column + 1));
+    result.push(...cluster.map((item) => ({ ...item, columns })));
+    cluster = [];
+    activeEnds = [];
+    clusterEnd = -Infinity;
+  };
+
+  for (const item of sorted) {
+    if (cluster.length > 0 && item.start >= clusterEnd) flush();
+    let column = activeEnds.findIndex((end) => end <= item.start);
+    if (column === -1) column = activeEnds.length;
+    activeEnds[column] = item.end;
+    cluster.push({ ...item, column });
+    clusterEnd = Math.max(clusterEnd, item.end);
+  }
+  if (cluster.length > 0) flush();
+  return result;
+};
+
 /** Today's calendar date in the viewer's local time zone (not UTC), as YYYY-MM-DD. */
 export const todayDateKey = (): string => {
   const now = new Date();

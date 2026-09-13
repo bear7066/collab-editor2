@@ -271,21 +271,24 @@ export const useBoard = (boardName: string) => {
   );
 
   const setRecurrence = useCallback(
-    (taskId: string, weekday: number | null) => {
+    (taskId: string, nextRule: RecurrenceRule | null) => {
       updateBoard((ydoc) => {
         const sectionMap = findSectionMap(ydoc, currentSectionId);
         if (!sectionMap) return;
         const found = findTaskMapInSection(sectionMap, taskId);
         if (!found) return;
 
-        if (weekday === null) {
+        if (nextRule === null) {
           found.task.set('recur', null);
           return;
         }
         // Keep the existing start date across a weekday change, so it never
         // moves backward and silently invents occurrences that never happened.
         const existing = found.task.get('recur') as RecurrenceRule | null;
-        found.task.set('recur', { weekday, startDate: existing?.startDate ?? todayDateKey() });
+        found.task.set('recur', {
+          ...nextRule,
+          startDate: existing?.startDate ?? todayDateKey(),
+        });
       });
     },
     [currentSectionId, updateBoard]

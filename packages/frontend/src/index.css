@@ -355,7 +355,7 @@ body::before {
 }
 
 .board-meeting-log .ProseMirror {
-  min-height: 17rem;
+  min-height: 8rem;
   padding: 0 !important;
   outline: none;
 }

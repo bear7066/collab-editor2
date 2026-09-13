@@ -59,7 +59,7 @@ export const MeetingLogEditor: React.FC<MeetingLogEditorProps> = ({ fragment, pr
   }, [loading, fragment, provider]);
 
   return (
-    <div className="board-meeting-log h-80 overflow-y-auto rounded-lg border border-line bg-paper px-4 py-3 transition focus-within:border-ai">
+    <div className="board-meeting-log h-44 overflow-y-auto rounded-lg border border-line bg-paper px-4 py-3 transition focus-within:border-ai">
       <Milkdown />
     </div>
   );

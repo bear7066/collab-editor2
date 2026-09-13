@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { activeChildren, countActive, currentOccurrenceDate, todayDateKey } from './board/boardModel';
 import { ARCHIVE_SCROLL_THRESHOLD, FLAG_FILL_CLASS, displayAccent, formatShortDate } from './board/constants';
-import { CalendarWidget } from './board/CalendarWidget';
+import { WeekSchedule } from './board/WeekSchedule';
 import { RecurrencePicker } from './board/RecurrencePicker';
 import MeetingLogEditor from './board/MeetingLogEditor';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
@@ -203,7 +203,7 @@ export const Board: React.FC = () => {
             aria-label={task.flag ? `Calendar tag: ${task.flag}` : 'Add a calendar tag'}
           />
 
-          <RecurrencePicker recur={task.recur ?? null} onChange={(weekday) => setRecurrence(task.id, weekday)} />
+          <RecurrencePicker recur={task.recur ?? null} onChange={(rule) => setRecurrence(task.id, rule)} />
 
           <div className="mt-0.5 flex shrink-0 items-center gap-0.5 opacity-70 transition hover:opacity-100">
             <button
@@ -351,7 +351,7 @@ export const Board: React.FC = () => {
         </header>
       )}
 
-      <div className={`${isIframe ? 'w-full px-5 py-5' : 'mx-auto w-full max-w-6xl px-5 py-7'}`}>
+      <div className={`${isIframe ? 'w-full px-5 py-5' : `mx-auto w-full px-5 py-7 ${meta?.visibility === 'personal' ? 'max-w-[1500px]' : 'max-w-6xl'}`}`}>
 
         <nav className="mb-5 flex flex-wrap items-end gap-1 border-b border-line">
           {board.sections.map((item) => {
@@ -387,20 +387,31 @@ export const Board: React.FC = () => {
           </button>
         </nav>
 
-        <main className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="mb-5 rounded-xl border border-line bg-surface p-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
+              Meeting Log
+            </h2>
+          </div>
+          {sectionNotes && provider && (
+            <MilkdownProvider>
+              <MeetingLogEditor key={section.id} fragment={sectionNotes} provider={provider} />
+            </MilkdownProvider>
+          )}
+        </section>
+
+        <main
+          className={`grid items-start gap-5 ${
+            meta?.visibility === 'personal' ? 'lg:grid-cols-2' : 'lg:grid-cols-[minmax(0,1fr)_320px]'
+          }`}
+        >
+          {meta?.visibility === 'personal' && (
+            <aside className="min-w-0 lg:sticky lg:top-24">
+              <WeekSchedule sections={board.sections} />
+            </aside>
+          )}
+
           <section className="min-w-0">
-            <section className="mb-3 rounded-xl border border-line bg-surface p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
-                  Meeting Log
-                </h2>
-              </div>
-              {sectionNotes && provider && (
-                <MilkdownProvider>
-                  <MeetingLogEditor key={section.id} fragment={sectionNotes} provider={provider} />
-                </MilkdownProvider>
-              )}
-            </section>
 
             {visibleGroups.length === 0 ? (
               <div className="rounded-xl border border-line bg-surface p-5 font-label text-sm text-stone">
@@ -476,10 +487,7 @@ export const Board: React.FC = () => {
             )}
           </section>
 
-          <aside className="space-y-3">
-            {/* Personal-only for now: a whole-board overview of red/yellow/green-tagged dates. */}
-            {meta?.visibility === 'personal' && <CalendarWidget sections={board.sections} />}
-
+          <aside className={`space-y-3 ${meta?.visibility === 'personal' ? 'lg:col-start-2' : ''}`}>
             <section className="rounded-xl border border-line bg-surface p-4">
               <h2 className="mb-3 font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
                 Groups

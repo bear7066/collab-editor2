@@ -7,6 +7,9 @@ export type FlagColor = 'red' | 'yellow' | 'green';
 export interface RecurrenceRule {
   weekday: number;
   startDate: string;
+  /** Local wall-clock time. Optional so boards created before the week view remain readable. */
+  startTime?: string;
+  endTime?: string;
 }
 
 export interface BoardTask {

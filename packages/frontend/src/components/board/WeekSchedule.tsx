@@ -1,0 +1,185 @@
+import React, { useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
+import { collectFlaggedTasks, collectRecurringOccurrences, layoutOverlappingEvents } from './boardModel';
+import type { FlaggedTask } from './boardModel';
+import type { BoardSection, FlagColor } from './types';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MINUTE_HEIGHT = 0.8;
+const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const EVENT_CLASS: Record<FlagColor, string> = {
+  red: 'border-flag-red bg-flag-red/85 text-white',
+  yellow: 'border-flag-yellow bg-flag-yellow/85 text-ink',
+  green: 'border-flag-green bg-flag-green/85 text-white',
+};
+
+const pad2 = (value: number) => String(value).padStart(2, '0');
+const formatDateKey = (date: Date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+const parseTime = (value: string | undefined, fallback: number) => {
+  if (!value || !/^\d{2}:\d{2}$/.test(value)) return fallback;
+  const [hours, minutes] = value.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const mondayOf = (date: Date) => {
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  return monday;
+};
+
+interface WeekScheduleProps {
+  sections: BoardSection[];
+}
+
+interface ScheduleEvent {
+  id: string;
+  entry: FlaggedTask;
+  day: number;
+  start: number;
+  end: number;
+}
+
+/** Personal-board week view, with overlapping items laid out side by side. */
+export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
+  const [weekOffset, setWeekOffset] = useState(0);
+  const today = new Date();
+  const weekStart = mondayOf(new Date(today.getTime() + weekOffset * 7 * DAY_MS));
+  const dates = Array.from({ length: 7 }, (_, index) => new Date(weekStart.getTime() + index * DAY_MS));
+  const dateKeys = dates.map(formatDateKey);
+  const rangeStart = dateKeys[0];
+  const rangeEnd = dateKeys[6];
+  const todayKey = formatDateKey(today);
+
+  const entries = useMemo(() => {
+    const oneOff = collectFlaggedTasks(sections).filter(({ date }) => date >= rangeStart && date <= rangeEnd);
+    return [...oneOff, ...collectRecurringOccurrences(sections, rangeStart, rangeEnd)];
+  }, [sections, rangeStart, rangeEnd]);
+
+  const events = useMemo<ScheduleEvent[]>(
+    () =>
+      entries.map((entry) => {
+        const start = parseTime(entry.task.recur?.startTime, 9 * 60);
+        const end = Math.max(start + 30, parseTime(entry.task.recur?.endTime, 10 * 60));
+        return { id: `${entry.task.id}_${entry.date}`, entry, day: dateKeys.indexOf(entry.date), start, end };
+      }),
+    [entries, dateKeys]
+  );
+
+  const earliest = events.length > 0 ? Math.min(...events.map(({ start }) => start)) : 8 * 60;
+  const latest = events.length > 0 ? Math.max(...events.map(({ end }) => end)) : 20 * 60;
+  const dayStart = Math.max(0, Math.min(8 * 60, Math.floor(earliest / 60) * 60));
+  const dayEnd = Math.min(24 * 60, Math.max(20 * 60, Math.ceil(latest / 60) * 60));
+  const gridHeight = (dayEnd - dayStart) * MINUTE_HEIGHT;
+  const hours = Array.from({ length: (dayEnd - dayStart) / 60 + 1 }, (_, index) => dayStart / 60 + index);
+
+  const positionedByDay = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, day) => {
+        const dayEvents = events.filter((event) => event.day === day);
+        const layout = layoutOverlappingEvents(dayEvents.map(({ id, start, end }) => ({ id, start, end })));
+        return layout.map((position) => ({
+          ...dayEvents.find((event) => event.id === position.id)!,
+          ...position,
+        }));
+      }),
+    [events]
+  );
+
+  const weekLabel = `${dates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${dates[6].toLocaleDateString(
+    'en-US',
+    { month: 'short', day: 'numeric', year: 'numeric' }
+  )}`;
+
+  return (
+    <section className="rounded-xl border border-line bg-surface p-4">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div>
+          <h2 className="font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">Weekly calendar</h2>
+          <p className="mt-0.5 text-xs text-stone-light">{weekLabel}</p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setWeekOffset(0)}
+            className="rounded-md px-2 py-1 font-label text-[10px] text-stone transition hover:bg-sunken hover:text-ink cursor-pointer"
+          >
+            Today
+          </button>
+          <button type="button" onClick={() => setWeekOffset((value) => value - 1)} className="rounded p-1 text-stone transition hover:bg-sunken hover:text-ink cursor-pointer" aria-label="Previous week">
+            <ChevronLeft size={15} />
+          </button>
+          <button type="button" onClick={() => setWeekOffset((value) => value + 1)} className="rounded p-1 text-stone transition hover:bg-sunken hover:text-ink cursor-pointer" aria-label="Next week">
+            <ChevronRight size={15} />
+          </button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto pb-1">
+        <div className="min-w-[540px]">
+          <div className="grid grid-cols-[44px_repeat(7,minmax(0,1fr))] border-b border-line pb-2">
+            <div />
+            {dates.map((date, index) => {
+              const key = dateKeys[index];
+              return (
+                <div key={key} className={`text-center ${key === todayKey ? 'text-ai' : 'text-stone'}`}>
+                  <div className="font-label text-[9px] font-semibold tracking-wide">{WEEKDAY_LABELS[index]}</div>
+                  <div className={`mx-auto mt-1 flex h-6 w-6 items-center justify-center rounded-full text-xs ${key === todayKey ? 'bg-ai text-white' : 'text-ink-soft'}`}>
+                    {date.getDate()}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="relative flex" style={{ height: gridHeight }}>
+            <div className="relative w-11 shrink-0">
+              {hours.map((hour, index) => (
+                <span key={hour} className="absolute right-2 -translate-y-1/2 font-label text-[9px] text-stone-light" style={{ top: index * 60 * MINUTE_HEIGHT }}>
+                  {pad2(hour)}:00
+                </span>
+              ))}
+            </div>
+            <div className="relative grid min-w-0 flex-1 grid-cols-7 border-l border-line">
+              {hours.map((hour, index) => (
+                <div key={hour} className="pointer-events-none absolute left-0 right-0 border-t border-line" style={{ top: index * 60 * MINUTE_HEIGHT }} />
+              ))}
+              {positionedByDay.map((dayEvents, day) => (
+                <div key={day} className="relative min-w-0 border-r border-line">
+                  {dayEvents.map(({ entry, id, start, end, column, columns }) => {
+                    const completion = entry.task.recurCompletions?.[entry.date];
+                    return (
+                      <div
+                        key={id}
+                        className={`absolute overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 shadow-sm ${EVENT_CLASS[entry.task.flag!]} ${completion ? 'opacity-50' : ''}`}
+                        style={{
+                          top: (start - dayStart) * MINUTE_HEIGHT + 2,
+                          height: Math.max(24, (end - start) * MINUTE_HEIGHT - 4),
+                          left: `calc(${(column / columns) * 100}% + 2px)`,
+                          width: `calc(${100 / columns}% - 4px)`,
+                        }}
+                        title={`${entry.task.text}\n${entry.task.recur?.startTime ?? '09:00'}–${entry.task.recur?.endTime ?? '10:00'}\n${entry.crumb.join(' > ')}`}
+                      >
+                        <div className={`text-[9px] font-semibold leading-tight [overflow-wrap:anywhere] ${completion ? 'line-through' : ''}`}>{entry.task.text}</div>
+                        <div className="mt-0.5 font-label text-[8px] leading-tight opacity-80 [overflow-wrap:anywhere]">
+                          {entry.task.recur?.startTime ?? '09:00'}–{entry.task.recur?.endTime ?? '10:00'}
+                        </div>
+                        {entry.task.recur && <Repeat size={9} className="absolute bottom-1 right-1 opacity-70" aria-label="Repeats weekly" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      {events.length === 0 && (
+        <p className="mt-3 text-xs leading-5 text-stone">
+          Add a red, yellow, or green tag and set a date or weekly schedule to place an item here.
+        </p>
+      )}
+    </section>
+  );
+};
+
+export default WeekSchedule;

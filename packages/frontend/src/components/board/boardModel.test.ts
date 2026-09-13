@@ -5,6 +5,7 @@ import {
   collectRecurringOccurrences,
   currentOccurrenceDate,
   isValidDateString,
+  layoutOverlappingEvents,
   occurrencesInRange,
   worstFlag,
 } from './boardModel';
@@ -130,6 +131,46 @@ describe('colorsByDate', () => {
       }),
     ]);
     expect(colorsByDate(entries)).toEqual(new Map([['2026-09-20', 'red']]));
+  });
+});
+
+describe('layoutOverlappingEvents', () => {
+  test('places simultaneous items side by side', () => {
+    expect(
+      layoutOverlappingEvents([
+        { id: 'a', start: 9 * 60, end: 11 * 60 },
+        { id: 'b', start: 10 * 60, end: 12 * 60 },
+      ])
+    ).toEqual([
+      { id: 'a', start: 9 * 60, end: 11 * 60, column: 0, columns: 2 },
+      { id: 'b', start: 10 * 60, end: 12 * 60, column: 1, columns: 2 },
+    ]);
+  });
+
+  test('reuses a column when one item ends exactly as another starts', () => {
+    expect(
+      layoutOverlappingEvents([
+        { id: 'a', start: 9 * 60, end: 10 * 60 },
+        { id: 'b', start: 10 * 60, end: 11 * 60 },
+      ]).map(({ column, columns }) => ({ column, columns }))
+    ).toEqual([
+      { column: 0, columns: 1 },
+      { column: 0, columns: 1 },
+    ]);
+  });
+
+  test('keeps a chain of overlaps in one two-column cluster', () => {
+    expect(
+      layoutOverlappingEvents([
+        { id: 'a', start: 9 * 60, end: 11 * 60 },
+        { id: 'b', start: 10 * 60, end: 12 * 60 },
+        { id: 'c', start: 11 * 60 + 30, end: 13 * 60 },
+      ]).map(({ column, columns }) => ({ column, columns }))
+    ).toEqual([
+      { column: 0, columns: 2 },
+      { column: 1, columns: 2 },
+      { column: 0, columns: 2 },
+    ]);
   });
 });
 
