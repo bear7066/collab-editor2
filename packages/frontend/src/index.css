@@ -42,7 +42,9 @@
   --color-flag-yellow:  #dfac2e;
   --color-flag-green:   #4f9d5e;
 
-  --font-serif: 'Noto Serif TC', 'Songti TC', Georgia, serif;
+  /* Iansui only ships one weight (400); font-semibold/font-bold on it are a
+     browser-synthesized bold, not a true weight — checked and it reads fine. */
+  --font-serif: 'Iansui', 'PingFang TC', system-ui, sans-serif;
   /* Small uppercase UI labels (badges, section headings) — not actually
      monospace; Tailwind's own --font-mono stays reserved for real code. */
   --font-label: 'Nunito', 'Inter', system-ui, sans-serif;
