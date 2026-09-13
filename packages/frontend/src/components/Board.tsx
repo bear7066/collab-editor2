@@ -19,6 +19,7 @@ import { activeChildren, countActive, currentOccurrenceDate, todayDateKey } from
 import { ARCHIVE_SCROLL_THRESHOLD, FLAG_FILL_CLASS, displayAccent, formatShortDate } from './board/constants';
 import { WeekSchedule } from './board/WeekSchedule';
 import { RecurrencePicker } from './board/RecurrencePicker';
+import { OneOffTimePicker } from './board/OneOffTimePicker';
 import MeetingLogEditor from './board/MeetingLogEditor';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { ThemeToggle } from './ThemeToggle';
@@ -63,6 +64,7 @@ export const Board: React.FC = () => {
     setCurrentSectionId,
     setDrafts,
     setNewGroupName,
+    setOneOffTime,
     setRecurrence,
     startFinishLongPress,
     submitAdd,
@@ -202,6 +204,14 @@ export const Board: React.FC = () => {
             title={task.flag ? `Calendar tag: ${task.flag}. Click to change.` : 'Add a calendar tag (red/yellow/green/blue/pink)'}
             aria-label={task.flag ? `Calendar tag: ${task.flag}` : 'Add a calendar tag'}
           />
+
+          {!task.recur && (
+            <OneOffTimePicker
+              startTime={task.startTime}
+              endTime={task.endTime}
+              onChange={(range) => setOneOffTime(task.id, range)}
+            />
+          )}
 
           <RecurrencePicker recur={task.recur ?? null} onChange={(rule) => setRecurrence(task.id, rule)} />
 
@@ -407,7 +417,7 @@ export const Board: React.FC = () => {
         >
           {meta?.visibility === 'personal' && (
             <aside className="min-w-0 lg:sticky lg:top-24">
-              <WeekSchedule sections={board.sections} />
+              <WeekSchedule key={boardName} sections={board.sections} />
             </aside>
           )}
 

@@ -255,6 +255,20 @@ export const useBoard = (boardName: string) => {
     [currentSectionId, section, updateBoard]
   );
 
+  const setOneOffTime = useCallback(
+    (taskId: string, range: { startTime: string; endTime: string } | null) => {
+      updateBoard((ydoc) => {
+        const sectionMap = findSectionMap(ydoc, currentSectionId);
+        if (!sectionMap) return;
+        const found = findTaskMapInSection(sectionMap, taskId);
+        if (!found) return;
+        found.task.set('startTime', range?.startTime ?? null);
+        found.task.set('endTime', range?.endTime ?? null);
+      });
+    },
+    [currentSectionId, updateBoard]
+  );
+
   const cycleFlag = useCallback(
     (taskId: string) => {
       updateBoard((ydoc) => {
@@ -496,6 +510,7 @@ export const useBoard = (boardName: string) => {
     setCurrentSectionId,
     setDrafts,
     setNewGroupName,
+    setOneOffTime,
     setRecurrence,
     startFinishLongPress,
     submitAdd,

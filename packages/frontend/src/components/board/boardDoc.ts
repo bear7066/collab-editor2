@@ -73,6 +73,8 @@ export const createTaskMap = (text: string): YBoardMap => {
   task.set('link', null);
   task.set('completedAt', null);
   task.set('date', null);
+  task.set('startTime', null);
+  task.set('endTime', null);
   task.set('flag', null);
   task.set('recur', null);
   task.set('recurCompletions', {});

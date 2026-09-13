@@ -26,6 +26,9 @@ export interface BoardTask {
    * set; a recurring task's dates come from expanding the rule instead.
    */
   date?: string | null;
+  /** Optional wall-clock range for a one-off dated task. */
+  startTime?: string | null;
+  endTime?: string | null;
   flag?: FlagColor | null;
   recur?: RecurrenceRule | null;
   /**

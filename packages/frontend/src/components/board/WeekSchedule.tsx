@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
 import { collectFlaggedTasks, collectRecurringOccurrences, layoutOverlappingEvents } from './boardModel';
 import type { FlaggedTask } from './boardModel';
@@ -40,11 +40,22 @@ interface ScheduleEvent {
   day: number;
   start: number;
   end: number;
+  startLabel: string;
+  endLabel: string;
 }
 
 /** Personal-board week view, with overlapping items laid out side by side. */
 export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
   const [weekOffset, setWeekOffset] = useState(0);
+
+  // Mounting covers normal in-app navigation; pageshow also covers reopening
+  // a browser-cached page with its old React state intact.
+  useEffect(() => {
+    const resetToCurrentWeek = () => setWeekOffset(0);
+    window.addEventListener('pageshow', resetToCurrentWeek);
+    return () => window.removeEventListener('pageshow', resetToCurrentWeek);
+  }, []);
+
   const today = new Date();
   const weekStart = mondayOf(new Date(today.getTime() + weekOffset * 7 * DAY_MS));
   const dates = Array.from({ length: WORKDAY_COUNT }, (_, index) => new Date(weekStart.getTime() + index * DAY_MS));
@@ -61,9 +72,11 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
   const events = useMemo<ScheduleEvent[]>(
     () =>
       entries.map((entry) => {
-        const start = parseTime(entry.task.recur?.startTime, 9 * 60);
-        const end = Math.max(start + 30, parseTime(entry.task.recur?.endTime, 10 * 60));
-        return { id: `${entry.task.id}_${entry.date}`, entry, day: dateKeys.indexOf(entry.date), start, end };
+        const startLabel = entry.task.recur?.startTime ?? entry.task.startTime ?? '09:00';
+        const endLabel = entry.task.recur?.endTime ?? entry.task.endTime ?? '10:00';
+        const start = parseTime(startLabel, 9 * 60);
+        const end = Math.max(start + 30, parseTime(endLabel, 10 * 60));
+        return { id: `${entry.task.id}_${entry.date}`, entry, day: dateKeys.indexOf(entry.date), start, end, startLabel, endLabel };
       }),
     [entries, dateKeys]
   );
@@ -151,7 +164,7 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
               ))}
               {positionedByDay.map((dayEvents, day) => (
                 <div key={day} className="relative min-w-0 border-r border-line">
-                  {dayEvents.map(({ entry, id, start, end, column, columns }) => {
+                  {dayEvents.map(({ entry, id, start, end, startLabel, endLabel, column, columns }) => {
                     const completion = entry.task.recurCompletions?.[entry.date];
                     return (
                       <div
@@ -163,11 +176,11 @@ export const WeekSchedule: React.FC<WeekScheduleProps> = ({ sections }) => {
                           left: `calc(${(column / columns) * 100}% + 2px)`,
                           width: `calc(${100 / columns}% - 4px)`,
                         }}
-                        title={`${entry.task.text}\n${entry.task.recur?.startTime ?? '09:00'}–${entry.task.recur?.endTime ?? '10:00'}\n${entry.crumb.join(' > ')}`}
+                        title={`${entry.task.text}\n${startLabel}–${endLabel}\n${entry.crumb.join(' > ')}`}
                       >
                         <div className={`text-[8px] font-semibold leading-tight [overflow-wrap:anywhere] sm:text-[9px] ${completion ? 'line-through' : ''}`}>{entry.task.text}</div>
                         <div className="mt-0.5 hidden font-label text-[8px] leading-tight opacity-80 [overflow-wrap:anywhere] sm:block">
-                          {entry.task.recur?.startTime ?? '09:00'}–{entry.task.recur?.endTime ?? '10:00'}
+                          {startLabel}–{endLabel}
                         </div>
                         {entry.task.recur && <Repeat size={9} className="absolute bottom-1 right-1 opacity-70" aria-label="Repeats weekly" />}
                       </div>
