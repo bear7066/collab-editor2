@@ -9,10 +9,8 @@ import {
   Check,
   ChevronRight,
   Circle,
-  Link as LinkIcon,
   Loader2,
   Plus,
-  Star,
   Trash2,
   Video,
   X,
@@ -49,7 +47,6 @@ export const Board: React.FC = () => {
     deleteTask,
     drafts,
     editDate,
-    editLink,
     editOwner,
     editPercent,
     editTaskText,
@@ -70,7 +67,6 @@ export const Board: React.FC = () => {
     syncStatus,
     toggleAdder,
     toggleGroupCollapse,
-    toggleStar,
     visibleGroups,
   } = useBoard(boardName);
   const { meta, setVisibility, rename } = useBoardMeta(boardName);
@@ -170,7 +166,7 @@ export const Board: React.FC = () => {
             <button
               type="button"
               onClick={() => editPercent(task.id)}
-              className="mt-0.5 rounded-full border border-ai/30 bg-ai-soft px-2 py-0.5 font-mono text-[11px] text-ai transition hover:border-ai cursor-pointer"
+              className="mt-0.5 rounded-full border border-ai/30 bg-ai-soft px-2 py-0.5 font-label text-[11px] text-ai transition hover:border-ai cursor-pointer"
             >
               {task.percent}%
             </button>
@@ -180,7 +176,7 @@ export const Board: React.FC = () => {
             <button
               type="button"
               onClick={() => editDate(task.id)}
-              className="mt-0.5 rounded-full border border-line-strong px-2 py-0.5 font-mono text-[11px] text-stone transition hover:border-stone hover:text-ink cursor-pointer"
+              className="mt-0.5 rounded-full border border-line-strong px-2 py-0.5 font-label text-[11px] text-stone transition hover:border-stone hover:text-ink cursor-pointer"
               title="Change date"
             >
               {formatShortDate(task.date)}
@@ -197,31 +193,6 @@ export const Board: React.FC = () => {
             aria-label={task.flag ? `Calendar tag: ${task.flag}` : 'Add a calendar tag'}
           />
 
-          <button
-            type="button"
-            onClick={() => toggleStar(task.id)}
-            className={`mt-0.5 rounded p-1 transition cursor-pointer ${
-              task.starred ? 'text-kaki' : 'text-stone-light hover:text-kaki'
-            }`}
-            title="Toggle priority"
-            aria-label="Toggle priority"
-          >
-            <Star size={14} fill={task.starred ? 'currentColor' : 'none'} />
-          </button>
-
-          {task.link && (
-            <a
-              href={task.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1 rounded p-1 text-stone transition hover:text-ai"
-              title={task.link}
-              aria-label="Open task link"
-            >
-              <LinkIcon size={14} />
-            </a>
-          )}
-
           <div className="mt-0.5 flex shrink-0 items-center gap-0.5 opacity-70 transition hover:opacity-100">
             <button
               type="button"
@@ -231,15 +202,6 @@ export const Board: React.FC = () => {
               aria-label="Set progress"
             >
               <BarChart3 size={14} />
-            </button>
-            <button
-              type="button"
-              onClick={() => editLink(task.id)}
-              className="rounded p-1 text-stone transition hover:bg-sunken hover:text-ai cursor-pointer"
-              title="Edit link"
-              aria-label="Edit link"
-            >
-              <LinkIcon size={14} />
             </button>
             <button
               type="button"
@@ -395,7 +357,7 @@ export const Board: React.FC = () => {
               >
                 {item.name}
                 <span
-                  className={`rounded-full px-2 py-0.5 font-mono text-[11px] ${
+                  className={`rounded-full px-2 py-0.5 font-label text-[11px] ${
                     isActive ? 'bg-moss-soft text-moss-deep' : 'bg-sunken text-stone'
                   }`}
                 >
@@ -407,7 +369,7 @@ export const Board: React.FC = () => {
           <button
             type="button"
             onClick={addSection}
-            className="px-3 py-2.5 font-mono text-xs text-stone transition hover:text-moss-deep cursor-pointer"
+            className="px-3 py-2.5 font-label text-xs text-stone transition hover:text-moss-deep cursor-pointer"
           >
             + Section
           </button>
@@ -417,10 +379,9 @@ export const Board: React.FC = () => {
           <section className="min-w-0">
             <section className="mb-3 rounded-xl border border-line bg-surface p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
+                <h2 className="font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
                   Meeting Log
                 </h2>
-                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-stone-light">Markdown</span>
               </div>
               {sectionNotes && provider && (
                 <MilkdownProvider>
@@ -430,7 +391,7 @@ export const Board: React.FC = () => {
             </section>
 
             {visibleGroups.length === 0 ? (
-              <div className="rounded-xl border border-line bg-surface p-5 font-mono text-sm text-stone">
+              <div className="rounded-xl border border-line bg-surface p-5 font-label text-sm text-stone">
                 No groups yet.
               </div>
             ) : (
@@ -465,7 +426,7 @@ export const Board: React.FC = () => {
                             event.currentTarget.blur();
                           }
                         }}
-                        className="rounded-md bg-moss-soft px-2.5 py-1 font-mono text-xs font-bold tracking-wide text-moss-deep outline-none focus:ring-2 focus:ring-moss/40"
+                        className="rounded-md bg-moss-soft px-2.5 py-1 font-label text-xs font-bold tracking-wide text-moss-deep outline-none focus:ring-2 focus:ring-moss/40"
                       >
                         {group.owner}
                       </span>
@@ -483,13 +444,13 @@ export const Board: React.FC = () => {
                         {tasks.length > 0 ? (
                           <div>{tasks.map((task) => renderTaskNode(task))}</div>
                         ) : (
-                          <div className="py-2 font-mono text-xs text-stone">No active tasks.</div>
+                          <div className="py-2 font-label text-xs text-stone">No active tasks.</div>
                         )}
 
                         <button
                           type="button"
                           onClick={() => toggleAdder(key)}
-                          className="mt-2 flex items-center gap-1 rounded-md px-1.5 py-1 font-mono text-xs text-stone transition hover:text-moss-deep cursor-pointer"
+                          className="mt-2 flex items-center gap-1 rounded-md px-1.5 py-1 font-label text-xs text-stone transition hover:text-moss-deep cursor-pointer"
                         >
                           <Plus size={13} />
                           Add task
@@ -508,7 +469,7 @@ export const Board: React.FC = () => {
             {meta?.visibility === 'personal' && <CalendarWidget sections={board.sections} />}
 
             <section className="rounded-xl border border-line bg-surface p-4">
-              <h2 className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
+              <h2 className="mb-3 font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
                 Groups
               </h2>
               <p className="mb-3 text-xs leading-5 text-stone">
@@ -543,10 +504,10 @@ export const Board: React.FC = () => {
                 className="flex w-full items-center gap-2 text-left cursor-pointer"
               >
                 <Archive size={14} className="text-stone" />
-                <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
+                <span className="font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
                   Done / Cancelled
                 </span>
-                <span className="ml-auto font-mono text-xs text-moss-deep">{archiveItems.length}</span>
+                <span className="ml-auto font-label text-xs text-moss-deep">{archiveItems.length}</span>
                 <ChevronRight size={15} className={`text-stone transition ${archiveOpen ? 'rotate-90' : ''}`} />
               </button>
               <p className="mt-2 text-xs leading-5 text-stone">
@@ -560,7 +521,7 @@ export const Board: React.FC = () => {
                   }`}
                 >
                   {archiveItems.length === 0 ? (
-                    <div className="font-mono text-xs text-stone">Archive is empty.</div>
+                    <div className="font-label text-xs text-stone">Archive is empty.</div>
                   ) : (
                     <div className="space-y-1.5">
                       {archiveItems.map((entry) => (
@@ -573,7 +534,7 @@ export const Board: React.FC = () => {
                             {entry.task.status === 'done' ? <Check size={13} /> : <X size={13} />}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <div className="truncate font-mono text-[10px] text-stone-light">
+                            <div className="truncate font-label text-[10px] text-stone-light">
                               {entry.crumb.join(' > ')}
                             </div>
                             <div

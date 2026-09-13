@@ -7,6 +7,9 @@ import type { BoardSection, FlagColor } from './types';
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const dateKey = (year: number, month: number, day: number) => `${year}-${pad2(month + 1)}-${pad2(day)}`;
 
+/** Monday-first weekday initials, aligned with the Monday-first grid below. */
+const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
 interface CalendarWidgetProps {
   /** Every section on the board, not just the one currently open — the widget gives a whole-board overview. */
   sections: BoardSection[];
@@ -27,7 +30,9 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ sections }) => {
 
   const firstOfMonth = new Date(cursor.year, cursor.month, 1);
   const daysInMonth = new Date(cursor.year, cursor.month + 1, 0).getDate();
-  const leadingBlanks = firstOfMonth.getDay();
+  // getDay() is Sunday-first (0-6); shift so Monday lands at column 0,
+  // matching the M T W T F S S header below.
+  const leadingBlanks = (firstOfMonth.getDay() + 6) % 7;
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
   const monthLabel = firstOfMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -57,7 +62,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ sections }) => {
         >
           <ChevronLeft size={14} />
         </button>
-        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-stone">{monthLabel}</span>
+        <span className="font-label text-[11px] font-semibold uppercase tracking-[0.1em] text-stone">{monthLabel}</span>
         <button
           type="button"
           onClick={() => shiftMonth(1)}
@@ -66,6 +71,14 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ sections }) => {
         >
           <ChevronRight size={14} />
         </button>
+      </div>
+
+      <div className="mb-1 grid grid-cols-7 gap-1" aria-hidden="true">
+        {WEEKDAY_LABELS.map((label, index) => (
+          <span key={index} className="text-center font-label text-[9px] font-semibold text-stone-light">
+            {label}
+          </span>
+        ))}
       </div>
 
       <div className="grid grid-cols-7 gap-1">
@@ -90,7 +103,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ sections }) => {
       {selectedDate && (
         <div className="mt-3 rounded-lg border border-line bg-paper p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-stone">{selectedDate}</span>
+            <span className="font-label text-[10px] uppercase tracking-[0.1em] text-stone">{selectedDate}</span>
             <button
               type="button"
               onClick={() => setSelectedDate(null)}
@@ -109,7 +122,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ sections }) => {
                   <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${FLAG_FILL_CLASS[task.flag as FlagColor]}`} aria-hidden="true" />
                   <div className="min-w-0">
                     <div className="truncate text-ink-soft">{task.text}</div>
-                    <div className="truncate font-mono text-[10px] text-stone-light">{crumb.join(' > ')}</div>
+                    <div className="truncate font-label text-[10px] text-stone-light">{crumb.join(' > ')}</div>
                   </div>
                 </li>
               ))}

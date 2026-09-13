@@ -18,11 +18,16 @@ export const displayAccent = (accent: string) => LEGACY_ACCENTS[accent.toLowerCa
 export const ARCHIVE_SCROLL_THRESHOLD = 15;
 export const FINISH_LONG_PRESS_MS = 550;
 
-/** Solid-fill Tailwind class per calendar tag, shared by the task row dot and the calendar cells. */
+/**
+ * Solid-fill Tailwind class per calendar tag, shared by the task row dot and
+ * the calendar cells. Deliberately a dedicated red/yellow/green trio, not the
+ * shu/kaki/moss zen accents used elsewhere — a traffic-light tag needs to
+ * read as red/yellow/green at a glance, not as a themed accent colour.
+ */
 export const FLAG_FILL_CLASS: Record<import('./types').FlagColor, string> = {
-  red: 'bg-shu',
-  yellow: 'bg-kaki',
-  green: 'bg-moss',
+  red: 'bg-flag-red',
+  yellow: 'bg-flag-yellow',
+  green: 'bg-flag-green',
 };
 
 /** Format a stored YYYY-MM-DD as a short M/D label without going through Date/timezone conversion. */

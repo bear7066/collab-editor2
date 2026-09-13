@@ -22,7 +22,6 @@ import {
   findSection,
   findTaskInSection,
   isValidDateString,
-  normalizeLink,
 } from './boardModel';
 import type { BoardState, FlagColor, PendingFinishStatus } from './types';
 
@@ -164,18 +163,6 @@ export const useBoard = (boardName: string) => {
 
   useEffect(() => () => clearFinishPressTimer(), [clearFinishPressTimer]);
 
-  const toggleStar = useCallback(
-    (taskId: string) => {
-      updateBoard((ydoc) => {
-        const sectionMap = findSectionMap(ydoc, currentSectionId);
-        if (!sectionMap) return;
-        const found = findTaskMapInSection(sectionMap, taskId);
-        if (found) found.task.set('starred', !found.task.get('starred'));
-      });
-    },
-    [currentSectionId, updateBoard]
-  );
-
   const editTaskText = useCallback(
     (taskId: string, text: string | null) => {
       const nextText = text?.trim();
@@ -224,22 +211,6 @@ export const useBoard = (boardName: string) => {
         const percent = Math.max(0, Math.min(100, Number.parseInt(value, 10) || 0));
         found.task.set('percent', percent);
         if (percent > 0 && found.task.get('status') === 'todo') found.task.set('status', 'in_progress');
-      });
-    },
-    [currentSectionId, section, updateBoard]
-  );
-
-  const editLink = useCallback(
-    (taskId: string) => {
-      const current = section ? findTaskInSection(section, taskId)?.task.link : null;
-      const value = window.prompt('Task link. Leave blank to remove.', current ?? '');
-      if (value === null) return;
-
-      updateBoard((ydoc) => {
-        const sectionMap = findSectionMap(ydoc, currentSectionId);
-        if (!sectionMap) return;
-        const found = findTaskMapInSection(sectionMap, taskId);
-        if (found) found.task.set('link', normalizeLink(value));
       });
     },
     [currentSectionId, section, updateBoard]
@@ -469,7 +440,6 @@ export const useBoard = (boardName: string) => {
     deleteTask,
     drafts,
     editDate,
-    editLink,
     editOwner,
     editPercent,
     editTaskText,
@@ -490,7 +460,6 @@ export const useBoard = (boardName: string) => {
     syncStatus,
     toggleAdder,
     toggleGroupCollapse,
-    toggleStar,
     visibleGroups,
   };
 };

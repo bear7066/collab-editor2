@@ -37,7 +37,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ variant, detail, onRetry }
             {detail ? 'The server is not configured yet.' : 'Could not reach the server. Check your connection.'}
           </p>
           {detail && (
-            <p className="mt-3 rounded-lg border border-line bg-surface px-3 py-2 font-mono text-xs leading-5 text-shu">
+            <p className="mt-3 rounded-lg border border-line bg-surface px-3 py-2 font-label text-xs leading-5 text-shu">
               {detail}
             </p>
           )}
