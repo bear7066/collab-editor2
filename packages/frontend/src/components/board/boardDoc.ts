@@ -72,6 +72,8 @@ export const createTaskMap = (text: string): YBoardMap => {
   task.set('percent', null);
   task.set('link', null);
   task.set('completedAt', null);
+  task.set('date', null);
+  task.set('flag', null);
   task.set('children', new Y.Array<YBoardMap>());
   return task;
 };

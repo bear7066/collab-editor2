@@ -21,9 +21,13 @@ import {
   createId,
   findSection,
   findTaskInSection,
+  isValidDateString,
   normalizeLink,
 } from './boardModel';
-import type { BoardState, PendingFinishStatus } from './types';
+import type { BoardState, FlagColor, PendingFinishStatus } from './types';
+
+/** Click order for the flag dot: unflagged -> red -> yellow -> green -> unflagged. */
+const FLAG_CYCLE: (FlagColor | null)[] = [null, 'red', 'yellow', 'green'];
 
 export const useBoard = (boardName: string) => {
   const { doc, provider, status: syncStatus, synced } = useSyncedDoc('board', boardName);
@@ -241,6 +245,43 @@ export const useBoard = (boardName: string) => {
     [currentSectionId, section, updateBoard]
   );
 
+  const editDate = useCallback(
+    (taskId: string) => {
+      const current = section ? findTaskInSection(section, taskId)?.task.date : null;
+      const value = window.prompt('Date, YYYY-MM-DD. Leave blank to clear.', current ?? '');
+      if (value === null) return;
+      const trimmed = value.trim();
+
+      if (trimmed && !isValidDateString(trimmed)) {
+        window.alert('Please enter a real date as YYYY-MM-DD, e.g. 2026-09-20.');
+        return;
+      }
+
+      updateBoard((ydoc) => {
+        const sectionMap = findSectionMap(ydoc, currentSectionId);
+        if (!sectionMap) return;
+        const found = findTaskMapInSection(sectionMap, taskId);
+        if (found) found.task.set('date', trimmed || null);
+      });
+    },
+    [currentSectionId, section, updateBoard]
+  );
+
+  const cycleFlag = useCallback(
+    (taskId: string) => {
+      updateBoard((ydoc) => {
+        const sectionMap = findSectionMap(ydoc, currentSectionId);
+        if (!sectionMap) return;
+        const found = findTaskMapInSection(sectionMap, taskId);
+        if (!found) return;
+        const current = (found.task.get('flag') as FlagColor | null) ?? null;
+        const next = FLAG_CYCLE[(FLAG_CYCLE.indexOf(current) + 1) % FLAG_CYCLE.length];
+        found.task.set('flag', next);
+      });
+    },
+    [currentSectionId, updateBoard]
+  );
+
   const deleteTask = useCallback(
     (taskId: string) => {
       if (!window.confirm('Delete this task?')) return;
@@ -421,11 +462,13 @@ export const useBoard = (boardName: string) => {
     closeAdder,
     collapsedGroups,
     currentSectionId,
+    cycleFlag,
     cyclePendingFinish,
     deleteGroup,
     deleteSection,
     deleteTask,
     drafts,
+    editDate,
     editLink,
     editOwner,
     editPercent,

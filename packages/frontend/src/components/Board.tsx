@@ -5,6 +5,7 @@ import {
   Archive,
   ArrowLeft,
   BarChart3,
+  CalendarDays,
   Check,
   ChevronRight,
   Circle,
@@ -17,7 +18,8 @@ import {
   X,
 } from 'lucide-react';
 import { activeChildren, countActive } from './board/boardModel';
-import { ARCHIVE_SCROLL_THRESHOLD, displayAccent } from './board/constants';
+import { ARCHIVE_SCROLL_THRESHOLD, FLAG_FILL_CLASS, displayAccent, formatShortDate } from './board/constants';
+import { CalendarWidget } from './board/CalendarWidget';
 import MeetingLogEditor from './board/MeetingLogEditor';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { ThemeToggle } from './ThemeToggle';
@@ -41,10 +43,12 @@ export const Board: React.FC = () => {
     clearFinishPressTimer,
     closeAdder,
     collapsedGroups,
+    cycleFlag,
     cyclePendingFinish,
     deleteGroup,
     deleteTask,
     drafts,
+    editDate,
     editLink,
     editOwner,
     editPercent,
@@ -172,6 +176,27 @@ export const Board: React.FC = () => {
             </button>
           )}
 
+          {task.date && (
+            <button
+              type="button"
+              onClick={() => editDate(task.id)}
+              className="mt-0.5 rounded-full border border-line-strong px-2 py-0.5 font-mono text-[11px] text-stone transition hover:border-stone hover:text-ink cursor-pointer"
+              title="Change date"
+            >
+              {formatShortDate(task.date)}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => cycleFlag(task.id)}
+            className={`mt-1 h-3.5 w-3.5 shrink-0 rounded-full border transition cursor-pointer ${
+              task.flag ? `${FLAG_FILL_CLASS[task.flag]} border-transparent` : 'border-line-strong hover:border-stone'
+            }`}
+            title={task.flag ? `Calendar tag: ${task.flag}. Click to change.` : 'Add a calendar tag (red/yellow/green)'}
+            aria-label={task.flag ? `Calendar tag: ${task.flag}` : 'Add a calendar tag'}
+          />
+
           <button
             type="button"
             onClick={() => toggleStar(task.id)}
@@ -215,6 +240,15 @@ export const Board: React.FC = () => {
               aria-label="Edit link"
             >
               <LinkIcon size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => editDate(task.id)}
+              className="rounded p-1 text-stone transition hover:bg-sunken hover:text-ai cursor-pointer"
+              title="Set date"
+              aria-label="Set date"
+            >
+              <CalendarDays size={14} />
             </button>
             <button
               type="button"
@@ -470,6 +504,9 @@ export const Board: React.FC = () => {
           </section>
 
           <aside className="space-y-3">
+            {/* Personal-only for now: a whole-board overview of red/yellow/green-tagged dates. */}
+            {meta?.visibility === 'personal' && <CalendarWidget sections={board.sections} />}
+
             <section className="rounded-xl border border-line bg-surface p-4">
               <h2 className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
                 Groups

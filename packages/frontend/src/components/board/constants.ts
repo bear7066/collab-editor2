@@ -17,3 +17,16 @@ export const displayAccent = (accent: string) => LEGACY_ACCENTS[accent.toLowerCa
 
 export const ARCHIVE_SCROLL_THRESHOLD = 15;
 export const FINISH_LONG_PRESS_MS = 550;
+
+/** Solid-fill Tailwind class per calendar tag, shared by the task row dot and the calendar cells. */
+export const FLAG_FILL_CLASS: Record<import('./types').FlagColor, string> = {
+  red: 'bg-shu',
+  yellow: 'bg-kaki',
+  green: 'bg-moss',
+};
+
+/** Format a stored YYYY-MM-DD as a short M/D label without going through Date/timezone conversion. */
+export const formatShortDate = (date: string) => {
+  const [, month, day] = date.split('-');
+  return `${Number(month)}/${Number(day)}`;
+};

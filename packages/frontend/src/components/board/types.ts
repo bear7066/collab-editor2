@@ -1,5 +1,7 @@
 export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'cancelled';
 export type PendingFinishStatus = 'done' | 'cancelled';
+/** Calendar tag; only three levels, worst-wins when a day has several. */
+export type FlagColor = 'red' | 'yellow' | 'green';
 
 export interface BoardTask {
   id: string;
@@ -9,6 +11,12 @@ export interface BoardTask {
   percent: number | null;
   link: string | null;
   completedAt: string | null;
+  /**
+   * ISO calendar date (YYYY-MM-DD), or absent on tasks created before this
+   * field existed — read as null, never as a crash.
+   */
+  date?: string | null;
+  flag?: FlagColor | null;
   children: BoardTask[];
 }
 
