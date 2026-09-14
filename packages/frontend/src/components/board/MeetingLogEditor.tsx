@@ -5,7 +5,6 @@ import { Milkdown, useEditor } from '@milkdown/react';
 import { collab, collabServiceCtx } from '@milkdown/plugin-collab';
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import { dropPoint } from '@milkdown/kit/prose/transform';
-import { Loader2, Paperclip, Upload } from 'lucide-react';
 import type * as Y from 'yjs';
 import type { HttpSyncProvider } from '../../lib/HttpSyncProvider';
 
@@ -25,7 +24,6 @@ interface MeetingLogEditorProps {
 
 export const MeetingLogEditor: React.FC<MeetingLogEditorProps> = ({ fragment, provider, onUploadFile, tall = false }) => {
   const crepeRef = React.useRef<Crepe | null>(null);
-  const [isUploading, setIsUploading] = React.useState(false);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
 
   useEditor(
@@ -73,7 +71,6 @@ export const MeetingLogEditor: React.FC<MeetingLogEditorProps> = ({ fragment, pr
           : view.state.selection.from;
       });
 
-      setIsUploading(true);
       setUploadError(null);
       const uploaded: Array<{ url: string; filename: string; mimeType: string }> = [];
       const failed: string[] = [];
@@ -120,7 +117,6 @@ export const MeetingLogEditor: React.FC<MeetingLogEditorProps> = ({ fragment, pr
       }
 
       if (failed.length > 0) setUploadError(`Could not upload: ${failed.join(', ')}`);
-      setIsUploading(false);
     },
     [onUploadFile]
   );
@@ -140,29 +136,6 @@ export const MeetingLogEditor: React.FC<MeetingLogEditorProps> = ({ fragment, pr
           : undefined
       }
     >
-      {tall && (
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-3 py-2">
-          <p className="flex items-center gap-1.5 font-label text-[11px] text-stone">
-            <Paperclip size={12} />
-            Drop images or files directly into this note
-          </p>
-          <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-line-strong bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink-soft transition hover:border-moss hover:text-moss-deep">
-            {isUploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-            {isUploading ? 'Uploading\u2026' : 'Add files'}
-            <input
-              type="file"
-              multiple
-              disabled={isUploading}
-              className="hidden"
-              onChange={(event) => {
-                const files = Array.from(event.target.files ?? []);
-                event.target.value = '';
-                void insertFiles(files);
-              }}
-            />
-          </label>
-        </div>
-      )}
       {uploadError && (
         <p className="shrink-0 border-b border-line px-3 py-2 text-xs text-shu" role="alert">
           {uploadError}

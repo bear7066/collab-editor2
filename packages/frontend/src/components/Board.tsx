@@ -398,16 +398,7 @@ export const Board: React.FC = () => {
                 style={isActive ? { borderColor: displayAccent(item.accent) } : undefined}
               >
                 {item.name}
-                {item.mode === 'notes' ? (
-                  <span
-                    className={`flex items-center gap-1 rounded-full px-2 py-0.5 font-label text-[11px] ${
-                      isActive ? 'bg-moss-soft text-moss-deep' : 'bg-sunken text-stone'
-                    }`}
-                  >
-                    <FileText size={11} />
-                    Note
-                  </span>
-                ) : (
+                {item.mode !== 'notes' && (
                   <span
                     className={`rounded-full px-2 py-0.5 font-label text-[11px] ${
                       isActive ? 'bg-moss-soft text-moss-deep' : 'bg-sunken text-stone'
