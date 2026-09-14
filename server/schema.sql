@@ -33,3 +33,18 @@ CREATE TABLE IF NOT EXISTS document_updates (
 );
 
 CREATE INDEX IF NOT EXISTS document_updates_document_id ON document_updates (document_id, id);
+
+-- Uploaded attachments (images, PDFs, etc.), one row per file. Metadata about
+-- each file also lives in the owning document's Yjs state so the UI can list
+-- attachments without a round trip; this table holds only the bytes.
+CREATE TABLE IF NOT EXISTS files (
+  id           TEXT PRIMARY KEY,
+  document_id  TEXT NOT NULL REFERENCES documents (id) ON DELETE CASCADE,
+  filename     TEXT NOT NULL,
+  mime_type    TEXT NOT NULL,
+  size         INTEGER NOT NULL,
+  data         BYTEA NOT NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS files_document_id ON files (document_id);

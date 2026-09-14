@@ -27,6 +27,7 @@ export interface AppDeps {
 }
 
 export type Route = (request: Request, deps: AppDeps) => Promise<Response>;
+export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 const SESSION_COOKIE = 'session';
 const STATE_COOKIE = 'oauth_state';
@@ -177,6 +178,57 @@ const markdown: Route = authenticated(async (request, deps, user) => {
   return Response.json({ success: true });
 });
 
+/** POST uploads a file for a board's attachments, GET streams one back, DELETE removes it. */
+const files: Route = authenticated(async (request, deps, user) => {
+  const url = new URL(request.url);
+
+  if (request.method === 'POST') {
+    const ref = parseDocRef('board', url.searchParams.get('board'));
+    await requireAccess(deps.store, ref.id, user.id);
+
+    const form = await request.formData().catch(() => null);
+    const uploaded = form?.get('file');
+    if (!(uploaded instanceof File)) throw new BadRequestError('Missing file');
+    if (uploaded.size > MAX_FILE_BYTES) return jsonError(413, 'File too large');
+
+    const data = new Uint8Array(await uploaded.arrayBuffer());
+    const filename = uploaded.name.slice(0, 200) || 'file';
+    const mimeType = uploaded.type || 'application/octet-stream';
+    const id = crypto.randomUUID();
+    await deps.store.saveFile({ id, documentId: ref.id, filename, mimeType, size: data.byteLength, data });
+    return Response.json({ id, filename, mimeType, size: data.byteLength });
+  }
+
+  if (request.method === 'GET') {
+    const id = url.searchParams.get('id');
+    if (!id) throw new BadRequestError('Missing id');
+    const file = await deps.store.getFile(id);
+    if (!file) throw new NotFoundError('File not found');
+    await requireAccess(deps.store, file.documentId, user.id);
+    return new Response(file.data as Uint8Array<ArrayBuffer>, {
+      headers: {
+        'content-type': file.mimeType,
+        'content-disposition': `inline; filename="${file.filename.replace(/["\r\n]/g, '_')}"`,
+        'cache-control': 'private, max-age=31536000, immutable',
+        'content-security-policy': "sandbox; default-src 'none'",
+        'x-content-type-options': 'nosniff',
+      },
+    });
+  }
+
+  if (request.method === 'DELETE') {
+    const id = url.searchParams.get('id');
+    if (!id) throw new BadRequestError('Missing id');
+    const file = await deps.store.getFile(id);
+    if (!file) throw new NotFoundError('File not found');
+    await requireAccess(deps.store, file.documentId, user.id);
+    await deps.store.deleteFile(id);
+    return Response.json({ success: true });
+  }
+
+  return methodNotAllowed();
+});
+
 const me: Route = async (request, deps) => {
   const session = await currentSession(request, deps);
   if (!session) return jsonError(401, 'Unauthorized');
@@ -262,6 +314,7 @@ export const routes = {
   boards,
   projects,
   markdown,
+  files,
   me,
   login,
   callback,

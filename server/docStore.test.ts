@@ -108,12 +108,21 @@ function contract(name: string, makeStore: () => DocStore, prefix: string) {
     test('renames a document, carrying its updates, owner and visibility', async () => {
       await create('rename-from', { ownerId: OWNER, visibility: 'personal', seed: bytes(5) });
       await store.appendUpdate(id('rename-from'), bytes(6));
+      await store.saveFile({
+        id: `${prefix}rename-file`,
+        documentId: id('rename-from'),
+        filename: 'notes.pdf',
+        mimeType: 'application/pdf',
+        size: 2,
+        data: bytes(7, 8),
+      });
 
       expect(await store.renameDocument(id('rename-from'), id('rename-to'), docName('rename-to'))).toBe('renamed');
 
       expect(await store.getDocument(id('rename-from'))).toBeNull();
       expect(await store.getDocument(id('rename-to'))).toEqual({ ownerId: OWNER, visibility: 'personal' });
       expect((await store.loadUpdates(id('rename-to'))).updates).toEqual([bytes(5), bytes(6)]);
+      expect(await store.getFile(`${prefix}rename-file`)).toMatchObject({ documentId: id('rename-to'), filename: 'notes.pdf' });
     });
 
     test('refuses a rename onto a name already in use', async () => {
@@ -130,9 +139,18 @@ function contract(name: string, makeStore: () => DocStore, prefix: string) {
     test('deletes a document and its updates', async () => {
       await create('doomed', { seed: bytes(1) });
       await store.appendUpdate(id('doomed'), bytes(2));
+      await store.saveFile({
+        id: `${prefix}doomed-file`,
+        documentId: id('doomed'),
+        filename: 'doomed.bin',
+        mimeType: 'application/octet-stream',
+        size: 1,
+        data: bytes(3),
+      });
 
       expect(await store.deleteDocument(id('doomed'))).toBe(true);
       expect(await store.getDocument(id('doomed'))).toBeNull();
+      expect(await store.getFile(`${prefix}doomed-file`)).toBeNull();
       // Re-creating with the same id starts fresh, proving the old updates are gone too.
       await create('doomed', { seed: bytes(9) });
       expect((await store.loadUpdates(id('doomed'))).updates).toEqual([bytes(9)]);

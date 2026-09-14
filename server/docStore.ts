@@ -58,4 +58,19 @@ export interface DocStore {
   /** Collab documents plus the viewer's own personal ones, newest first. */
   listDocuments(kind: DocKind, viewerId: number): Promise<DocSummary[]>;
   setMarkdown(id: string, markdown: string): Promise<void>;
+  /** Stores an uploaded file's bytes alongside the document that owns it. */
+  saveFile(file: FileRecord): Promise<void>;
+  /** The file's bytes and metadata, or null if no such file exists. */
+  getFile(id: string): Promise<FileRecord | null>;
+  /** Permanently removes the file. Returns whether it existed. */
+  deleteFile(id: string): Promise<boolean>;
+}
+
+export interface FileRecord {
+  id: string;
+  documentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  data: Uint8Array;
 }

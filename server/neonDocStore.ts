@@ -1,5 +1,5 @@
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
-import type { DocKind, DocStore, DocSummary, DocumentInit, RenameOutcome, Visibility } from './docStore.js';
+import type { DocKind, DocStore, DocSummary, DocumentInit, FileRecord, RenameOutcome, Visibility } from './docStore.js';
 import { Buffer } from 'node:buffer';
 
 // Binary data crosses the driver as hex in and base64 out, so behaviour does
@@ -52,9 +52,9 @@ export class NeonDocStore implements DocStore {
     if (!ids.has(fromId)) return 'missing';
     if (ids.has(toId)) return 'conflict';
 
-    // The foreign key has no ON UPDATE CASCADE, so the new parent row is
-    // created first, the updates are repointed, and only then does the old row
-    // go. All three in one transaction: a crash cannot strand the updates.
+    // The foreign keys have no ON UPDATE CASCADE, so the new parent row is
+    // created first, dependent rows are repointed, and only then does the old
+    // row go. One transaction means a crash cannot strand the updates or files.
     // A racing creation of the same target makes the insert fail and the whole
     // transaction roll back, which is the safe outcome.
     await this.sql.transaction([
@@ -64,13 +64,14 @@ export class NeonDocStore implements DocStore {
         FROM documents WHERE id = ${fromId}
       `,
       this.sql`UPDATE document_updates SET document_id = ${toId} WHERE document_id = ${fromId}`,
+      this.sql`UPDATE files SET document_id = ${toId} WHERE document_id = ${fromId}`,
       this.sql`DELETE FROM documents WHERE id = ${fromId}`,
     ]);
     return 'renamed';
   }
 
   async deleteDocument(id: string): Promise<boolean> {
-    // document_updates cascades via its foreign key (ON DELETE CASCADE).
+    // Document updates and uploaded files cascade via their foreign keys.
     const deleted = (await this.sql`DELETE FROM documents WHERE id = ${id} RETURNING id`) as { id: string }[];
     return deleted.length > 0;
   }
@@ -126,6 +127,34 @@ export class NeonDocStore implements DocStore {
 
   async setMarkdown(id: string, markdown: string) {
     await this.sql`UPDATE documents SET markdown = ${markdown}, updated_at = now() WHERE id = ${id}`;
+  }
+
+  async saveFile(file: FileRecord) {
+    await this.sql`
+      INSERT INTO files (id, document_id, filename, mime_type, size, data)
+      VALUES (${file.id}, ${file.documentId}, ${file.filename}, ${file.mimeType}, ${file.size}, decode(${toHex(file.data)}, 'hex'))
+    `;
+  }
+
+  async getFile(id: string): Promise<FileRecord | null> {
+    const rows = (await this.sql`
+      SELECT document_id, filename, mime_type, size, data FROM files WHERE id = ${id}
+    `) as { document_id: string; filename: string; mime_type: string; size: number; data: string }[];
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    return {
+      id,
+      documentId: row.document_id,
+      filename: row.filename,
+      mimeType: row.mime_type,
+      size: row.size,
+      data: fromBase64(row.data),
+    };
+  }
+
+  async deleteFile(id: string): Promise<boolean> {
+    const rows = (await this.sql`DELETE FROM files WHERE id = ${id} RETURNING id`) as { id: string }[];
+    return rows.length > 0;
   }
 
   /** Test cleanup helper. */

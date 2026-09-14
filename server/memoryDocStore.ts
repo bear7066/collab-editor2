@@ -1,4 +1,4 @@
-import type { DocKind, DocStore, DocSummary, DocumentInit, RenameOutcome, Visibility } from './docStore.js';
+import type { DocKind, DocStore, DocSummary, DocumentInit, FileRecord, RenameOutcome, Visibility } from './docStore.js';
 
 interface MemoryDocument {
   kind: DocKind;
@@ -13,6 +13,7 @@ interface MemoryDocument {
 /** In-process store for tests and local development without a database. */
 export class MemoryDocStore implements DocStore {
   private documents = new Map<string, MemoryDocument>();
+  private files = new Map<string, FileRecord>();
   private nextRowId = 1;
 
   async ensureDocument({ id, kind, name, seed, ownerId, visibility }: DocumentInit) {
@@ -37,11 +38,20 @@ export class MemoryDocStore implements DocStore {
 
     this.documents.delete(fromId);
     this.documents.set(toId, { ...document, name: newName, updatedAt: new Date() });
+    for (const [fileId, file] of this.files) {
+      if (file.documentId === fromId) this.files.set(fileId, { ...file, documentId: toId });
+    }
     return 'renamed';
   }
 
   async deleteDocument(id: string): Promise<boolean> {
-    return this.documents.delete(id);
+    const deleted = this.documents.delete(id);
+    if (deleted) {
+      for (const [fileId, file] of this.files) {
+        if (file.documentId === id) this.files.delete(fileId);
+      }
+    }
+    return deleted;
   }
 
   async appendUpdate(id: string, update: Uint8Array) {
@@ -79,6 +89,18 @@ export class MemoryDocStore implements DocStore {
     const document = this.require(id);
     document.markdown = markdown;
     document.updatedAt = new Date();
+  }
+
+  async saveFile(file: FileRecord) {
+    this.files.set(file.id, file);
+  }
+
+  async getFile(id: string) {
+    return this.files.get(id) ?? null;
+  }
+
+  async deleteFile(id: string): Promise<boolean> {
+    return this.files.delete(id);
   }
 
   /** Number of stored update rows; used by tests to observe compaction. */

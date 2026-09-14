@@ -45,6 +45,9 @@ export const getTaskChildren = (task: YBoardMap) => task.get('children') as YTas
 export const getSectionNotesFragment = (doc: Y.Doc, sectionId: string) =>
   findSectionMap(doc, sectionId)?.get('notes') as Y.XmlFragment | undefined;
 
+export const getAttachmentsArray = (section: YBoardMap) =>
+  section.get('attachments') as Y.Array<YBoardMap> | undefined;
+
 export const findTaskMapDeep = (tasks: YTaskArray, taskId: string): YTaskLocation | null => {
   for (let index = 0; index < tasks.length; index += 1) {
     const task = tasks.get(index);
@@ -90,12 +93,29 @@ export const createGroupMap = (owner: string): YBoardMap => {
   return group;
 };
 
-export const createSectionMap = (id: string, name: string, accent: string): YBoardMap => {
+export const createSectionMap = (id: string, name: string, accent: string, mode: 'tasks' | 'notes' = 'tasks'): YBoardMap => {
   const section = new Y.Map<unknown>();
   section.set('id', id);
   section.set('name', name);
   section.set('accent', accent);
   section.set('notes', new Y.XmlFragment());
   section.set('groups', new Y.Array<YBoardMap>());
+  section.set('mode', mode);
+  section.set('attachments', new Y.Array<YBoardMap>());
   return section;
+};
+
+export const createAttachmentMap = (attachment: {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+}): YBoardMap => {
+  const map = new Y.Map<unknown>();
+  map.set('id', attachment.id);
+  map.set('filename', attachment.filename);
+  map.set('mimeType', attachment.mimeType);
+  map.set('size', attachment.size);
+  map.set('uploadedAt', new Date().toISOString());
+  return map;
 };

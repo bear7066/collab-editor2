@@ -402,3 +402,68 @@ describe('auth routes', () => {
     expect(response.headers.getSetCookie().some((header) => header.startsWith('session=;') && header.includes('Max-Age=0'))).toBe(true);
   });
 });
+
+const seedBoard = (deps: AppDeps, name: string, ownerId = OWNER.id, visibility: 'collab' | 'personal' = 'collab') =>
+  deps.store.ensureDocument({ id: `board/${name}`, kind: 'board', name, seed: null, ownerId, visibility });
+
+const uploadRequest = (path: string, cookie: string, file: File) => {
+  const form = new FormData();
+  form.set('file', file);
+  return new Request(`${ORIGIN}${path}`, { method: 'POST', headers: { cookie, origin: ORIGIN }, body: form });
+};
+
+describe('file attachments', () => {
+  test('an uploaded file round-trips through GET', async () => {
+    const deps = makeDeps();
+    const cookie = await sessionCookie();
+    await seedBoard(deps, 'plans');
+    const file = new File(['hello world'], 'notes.txt', { type: 'text/plain' });
+
+    const uploaded = await routes.files(uploadRequest('/api/files?board=plans', cookie, file), deps);
+    expect(uploaded.status).toBe(200);
+    const { id, filename, size } = (await uploaded.json()) as { id: string; filename: string; size: number };
+    expect(filename).toBe('notes.txt');
+    expect(size).toBe(11);
+
+    const fetched = await routes.files(request(`/api/files?id=${id}`, { cookie }), deps);
+    expect(fetched.headers.get('content-type')).toContain('text/plain');
+    expect(await fetched.text()).toBe('hello world');
+  });
+
+  test('rejects a file over the size limit', async () => {
+    const deps = makeDeps();
+    const cookie = await sessionCookie();
+    await seedBoard(deps, 'plans');
+    const big = new File([new Uint8Array(11 * 1024 * 1024)], 'big.bin', { type: 'application/octet-stream' });
+
+    const response = await routes.files(uploadRequest('/api/files?board=plans', cookie, big), deps);
+    expect(response.status).toBe(413);
+  });
+
+  test('a stranger to a personal board cannot upload or download its files', async () => {
+    const deps = makeDeps();
+    const owner = await sessionCookie(OWNER);
+    const friend = await sessionCookie(FRIEND);
+    await seedBoard(deps, 'secret', OWNER.id, 'personal');
+    const file = new File(['top secret'], 'secret.txt', { type: 'text/plain' });
+
+    expect((await routes.files(uploadRequest('/api/files?board=secret', friend, file), deps)).status).toBe(404);
+
+    const uploaded = await routes.files(uploadRequest('/api/files?board=secret', owner, file), deps);
+    const { id } = (await uploaded.json()) as { id: string };
+    expect((await routes.files(request(`/api/files?id=${id}`, { cookie: friend }), deps)).status).toBe(404);
+    expect((await routes.files(request(`/api/files?id=${id}`, { cookie: owner }), deps)).status).toBe(200);
+  });
+
+  test('delete removes the file', async () => {
+    const deps = makeDeps();
+    const cookie = await sessionCookie();
+    await seedBoard(deps, 'plans');
+    const file = new File(['bye'], 'bye.txt', { type: 'text/plain' });
+    const { id } = (await (await routes.files(uploadRequest('/api/files?board=plans', cookie, file), deps)).json()) as { id: string };
+
+    const deleted = await routes.files(request(`/api/files?id=${id}`, { method: 'DELETE', cookie, headers: { origin: ORIGIN } }), deps);
+    expect(deleted.status).toBe(200);
+    expect((await routes.files(request(`/api/files?id=${id}`, { cookie }), deps)).status).toBe(404);
+  });
+});

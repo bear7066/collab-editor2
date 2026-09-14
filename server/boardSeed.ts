@@ -19,6 +19,8 @@ export function createBoardSeed(): Uint8Array {
     general.set('accent', '#6b8f71');
     general.set('notes', new Y.XmlFragment());
     general.set('groups', new Y.Array());
+    general.set('mode', 'tasks');
+    general.set('attachments', new Y.Array());
 
     const sections = new Y.Array<Y.Map<unknown>>();
     sections.push([general]);

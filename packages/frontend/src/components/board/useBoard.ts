@@ -3,18 +3,21 @@ import * as Y from 'yjs';
 import { useSyncedDoc } from '../../lib/useSyncedDoc';
 import { ACCENTS, FINISH_LONG_PRESS_MS } from './constants';
 import {
+  createAttachmentMap,
   createGroupMap,
   createSectionMap,
   createTaskMap,
   docToBoardState,
   findSectionMap,
   findTaskMapInSection,
+  getAttachmentsArray,
   getGroupsArray,
   getGroupTasks,
   getSectionNotesFragment,
   getSectionsArray,
   getTaskChildren,
 } from './boardDoc';
+import { deleteFile as deleteRemoteFile, uploadFile } from '../../lib/files';
 import {
   collectArchive,
   countTasks,
@@ -382,18 +385,55 @@ export const useBoard = (boardName: string) => {
     [currentSectionId, updateBoard]
   );
 
-  const addSection = useCallback(() => {
-    const name = window.prompt('New section name:');
-    if (!name?.trim()) return;
+  const addSection = useCallback((name: string, mode: 'tasks' | 'notes') => {
     const cleanName = name.trim();
+    if (!cleanName) return;
     const nextId = createId('section');
     updateBoard((ydoc) => {
       const sections = getSectionsArray(ydoc);
       if (!sections) return;
-      sections.push([createSectionMap(nextId, cleanName, ACCENTS[sections.length % ACCENTS.length])]);
+      sections.push([
+        createSectionMap(nextId, cleanName, ACCENTS[sections.length % ACCENTS.length], mode),
+      ]);
     });
     setCurrentSectionId(nextId);
   }, [updateBoard]);
+
+  const addAttachment = useCallback(
+    async (file: File) => {
+      if (!currentSectionId) throw new Error('No section selected');
+      const uploaded = await uploadFile(boardName, file);
+      updateBoard((ydoc) => {
+        const sectionMap = findSectionMap(ydoc, currentSectionId);
+        if (!sectionMap) return;
+        let attachments = getAttachmentsArray(sectionMap);
+        if (!attachments) {
+          attachments = new Y.Array<Y.Map<unknown>>();
+          sectionMap.set('attachments', attachments);
+        }
+        attachments.push([createAttachmentMap(uploaded)]);
+      });
+      return uploaded;
+    },
+    [boardName, currentSectionId, updateBoard]
+  );
+
+  const removeAttachment = useCallback(
+    async (attachmentId: string) => {
+      if (!currentSectionId) return;
+      // Keep the visible metadata until remote deletion succeeds, so a
+      // temporary network failure does not strand an inaccessible file.
+      await deleteRemoteFile(attachmentId);
+      updateBoard((ydoc) => {
+        const sectionMap = findSectionMap(ydoc, currentSectionId);
+        const attachments = sectionMap && getAttachmentsArray(sectionMap);
+        if (!attachments) return;
+        const index = attachments.toArray().findIndex((item) => item.get('id') === attachmentId);
+        if (index !== -1) attachments.delete(index, 1);
+      });
+    },
+    [currentSectionId, updateBoard]
+  );
 
   const deleteSection = useCallback(() => {
     if (!board || !section) return;
@@ -409,7 +449,7 @@ export const useBoard = (boardName: string) => {
     const nextSection = board.sections[sectionIndex + 1] ?? board.sections[sectionIndex - 1];
     const confirmed = window.confirm(
       `Delete section "${section.name}"?\n\n` +
-        `This removes ${section.groups.length} groups and ${sectionTaskCount} tasks, including archived tasks.`
+        `This removes ${section.groups.length} groups, ${sectionTaskCount} tasks, and ${section.attachments?.length ?? 0} attachments.`
     );
     if (!confirmed) return;
 
@@ -419,6 +459,10 @@ export const useBoard = (boardName: string) => {
       const index = sections.toArray().findIndex((item) => item.get('id') === section.id);
       if (index !== -1) sections.delete(index, 1);
     });
+
+    // The Yjs section owns attachment metadata, while the API owns the bytes.
+    // Removing both prevents abandoned file rows from accumulating.
+    void Promise.allSettled((section.attachments ?? []).map((attachment) => deleteRemoteFile(attachment.id)));
 
     if (nextSection) setCurrentSectionId(nextSection.id);
     setArchiveOpen(false);
@@ -479,6 +523,7 @@ export const useBoard = (boardName: string) => {
   );
 
   return {
+    addAttachment,
     addGroup,
     addSection,
     archiveItems,
@@ -503,6 +548,7 @@ export const useBoard = (boardName: string) => {
     openAdders,
     pendingFinish,
     provider,
+    removeAttachment,
     restoreTask,
     section,
     sectionNotes,

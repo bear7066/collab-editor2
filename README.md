@@ -4,7 +4,7 @@ A personal Markdown editor and task board with a zen interface. Built with
 **React**, **Yjs**, **Milkdown**, **Vercel Functions** and **Neon Postgres**,
 behind GitHub sign-in restricted to a whitelist.
 
-- **Boards**: sections, owner groups, nested tasks, progress, links, an archive, and a Markdown meeting log per section.
+- **Boards**: task sections with owner groups, nested tasks, progress, links and archives, plus focused Note sections with collaborative Markdown and multi-file attachments.
 - **Projects**: WYSIWYG (Milkdown Crepe) and raw Markdown editing.
 - **Sync across devices**: edits save automatically about a second after you stop typing; other open devices pick them up within a few seconds. Concurrent edits merge (Yjs CRDT), and unsent edits survive going offline.
 - **Private**: every API call requires a GitHub account listed in `ALLOWED_GITHUB_IDS`.

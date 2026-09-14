@@ -9,9 +9,13 @@ import {
   Check,
   ChevronRight,
   Circle,
+  FileText,
+  ListTodo,
   Loader2,
+  Paperclip,
   Plus,
   Trash2,
+  Upload,
   Video,
   X,
 } from 'lucide-react';
@@ -27,7 +31,15 @@ import { BoardVisibility } from './BoardVisibility';
 import { BoardTitle } from './BoardTitle';
 import { useBoardMeta } from '../lib/useBoardMeta';
 import { useBoard } from './board/useBoard';
+import { fileUrl } from '../lib/files';
 import type { BoardTask } from './board/types';
+
+/** Human-readable size, e.g. "482 KB" or "3.1 MB". */
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 export const Board: React.FC = () => {
   const navigate = useNavigate();
@@ -35,6 +47,7 @@ export const Board: React.FC = () => {
   const [searchParams] = useSearchParams();
   const isIframe = searchParams.get('iframe') === 'true';
   const {
+    addAttachment,
     addGroup,
     addSection,
     archiveItems,
@@ -57,6 +70,7 @@ export const Board: React.FC = () => {
     openAdders,
     pendingFinish,
     provider,
+    removeAttachment,
     restoreTask,
     section,
     sectionNotes,
@@ -74,6 +88,43 @@ export const Board: React.FC = () => {
     visibleGroups,
   } = useBoard(boardName);
   const { meta, setVisibility, rename } = useBoardMeta(boardName);
+  const [sectionComposerOpen, setSectionComposerOpen] = React.useState(false);
+  const [sectionName, setSectionName] = React.useState('');
+  const [sectionMode, setSectionMode] = React.useState<'tasks' | 'notes'>('tasks');
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+
+  const uploadAttachments = React.useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
+      setIsUploading(true);
+      setUploadError(null);
+      const failed: string[] = [];
+      for (const file of files) {
+        try {
+          await addAttachment(file);
+        } catch {
+          failed.push(file.name);
+        }
+      }
+      if (failed.length > 0) setUploadError(`Could not upload: ${failed.join(', ')}`);
+      setIsUploading(false);
+    },
+    [addAttachment]
+  );
+
+  const uploadEditorImage = React.useCallback(
+    async (file: File) => {
+      try {
+        const uploaded = await addAttachment(file);
+        return fileUrl(uploaded.id);
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : 'Upload failed');
+        throw error;
+      }
+    },
+    [addAttachment]
+  );
 
   // The name is the address, so a successful rename moves the page with it.
   const handleRename = async (newName: string) => {
@@ -378,19 +429,30 @@ export const Board: React.FC = () => {
                 style={isActive ? { borderColor: displayAccent(item.accent) } : undefined}
               >
                 {item.name}
-                <span
-                  className={`rounded-full px-2 py-0.5 font-label text-[11px] ${
-                    isActive ? 'bg-moss-soft text-moss-deep' : 'bg-sunken text-stone'
-                  }`}
-                >
-                  {activeCount}
-                </span>
+                {item.mode === 'notes' ? (
+                  <span
+                    className={`flex items-center gap-1 rounded-full px-2 py-0.5 font-label text-[11px] ${
+                      isActive ? 'bg-moss-soft text-moss-deep' : 'bg-sunken text-stone'
+                    }`}
+                  >
+                    <FileText size={11} />
+                    Note
+                  </span>
+                ) : (
+                  <span
+                    className={`rounded-full px-2 py-0.5 font-label text-[11px] ${
+                      isActive ? 'bg-moss-soft text-moss-deep' : 'bg-sunken text-stone'
+                    }`}
+                  >
+                    {activeCount}
+                  </span>
+                )}
               </button>
             );
           })}
           <button
             type="button"
-            onClick={addSection}
+            onClick={() => setSectionComposerOpen(true)}
             className="px-3 py-2.5 font-label text-xs text-stone transition hover:text-moss-deep cursor-pointer"
           >
             + Section
@@ -400,21 +462,104 @@ export const Board: React.FC = () => {
         <section className="mb-5 rounded-xl border border-line bg-surface p-4">
           <div className="mb-2 flex items-center justify-between gap-3">
             <h2 className="font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
-              Meeting Log
+              {section.mode === 'notes' ? 'Notes' : 'Meeting Log'}
             </h2>
+            {section.mode === 'notes' && (
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-line-strong bg-paper px-2.5 py-1.5 text-xs font-semibold text-ink-soft transition hover:border-moss hover:text-moss-deep">
+                <Upload size={13} />
+                {isUploading ? 'Uploading…' : 'Upload files'}
+                <input
+                  type="file"
+                  multiple
+                  disabled={isUploading}
+                  className="hidden"
+                  onChange={(event) => {
+                    const files = Array.from(event.target.files ?? []);
+                    event.target.value = '';
+                    void uploadAttachments(files);
+                  }}
+                />
+              </label>
+            )}
           </div>
           {sectionNotes && provider && (
             <MilkdownProvider>
-              <MeetingLogEditor key={section.id} fragment={sectionNotes} provider={provider} />
+              <MeetingLogEditor
+                key={section.id}
+                fragment={sectionNotes}
+                provider={provider}
+                onUploadFile={uploadEditorImage}
+                tall={section.mode === 'notes'}
+              />
             </MilkdownProvider>
           )}
         </section>
 
-        <main
-          className={`grid items-start gap-5 ${
-            meta?.visibility === 'personal' ? 'lg:grid-cols-2' : 'lg:grid-cols-[minmax(0,1fr)_320px]'
-          }`}
-        >
+        {section.mode === 'notes' && (
+          <section
+            className="mb-5 rounded-xl border border-line bg-surface p-4"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              void uploadAttachments(Array.from(event.dataTransfer.files));
+            }}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
+                <Paperclip size={13} />
+                Attachments
+              </h2>
+            </div>
+            <p className="mb-3 font-label text-[11px] text-stone">
+              Drop files here or choose multiple files. Any file type, up to 10 MB each.
+            </p>
+            {uploadError && <p className="mb-3 text-xs text-shu" role="alert">{uploadError}</p>}
+            {!section.attachments || section.attachments.length === 0 ? (
+              <p className="font-label text-xs text-stone">No files yet.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {section.attachments.map((attachment) => (
+                  <li
+                    key={attachment.id}
+                    className="flex items-center gap-2 rounded-md border border-line px-3 py-2 text-xs"
+                  >
+                    <a
+                      href={fileUrl(attachment.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="min-w-0 flex-1 truncate font-medium text-ink-soft hover:text-ai"
+                    >
+                      {attachment.filename}
+                    </a>
+                    <span className="shrink-0 text-stone">{formatFileSize(attachment.size)}</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!window.confirm(`Remove "${attachment.filename}"?`)) return;
+                        try {
+                          await removeAttachment(attachment.id);
+                        } catch (error) {
+                          window.alert(error instanceof Error ? error.message : 'Delete failed');
+                        }
+                      }}
+                      className="shrink-0 text-stone transition hover:text-shu cursor-pointer"
+                      aria-label={`Remove ${attachment.filename}`}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {section.mode !== 'notes' && (
+          <main
+            className={`grid items-start gap-5 ${
+              meta?.visibility === 'personal' ? 'lg:grid-cols-2' : 'lg:grid-cols-[minmax(0,1fr)_320px]'
+            }`}
+          >
           {meta?.visibility === 'personal' && (
             <aside className="min-w-0 lg:sticky lg:top-24">
               <WeekSchedule key={boardName} sections={board.sections} />
@@ -603,7 +748,107 @@ export const Board: React.FC = () => {
               )}
             </section>
           </aside>
-        </main>
+          </main>
+        )}
+
+        {sectionComposerOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-ink/20 px-5 backdrop-blur-[2px]"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setSectionComposerOpen(false);
+            }}
+          >
+            <form
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="new-section-title"
+              className="w-full max-w-md rounded-2xl border border-line bg-paper p-5 shadow-xl"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!sectionName.trim()) return;
+                addSection(sectionName, sectionMode);
+                setSectionComposerOpen(false);
+                setSectionName('');
+                setSectionMode('tasks');
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') setSectionComposerOpen(false);
+              }}
+            >
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h2 id="new-section-title" className="font-serif text-lg font-semibold text-ink">New section</h2>
+                  <p className="mt-1 text-xs leading-5 text-stone">Choose what this section is for.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSectionComposerOpen(false)}
+                  className="rounded-md p-1 text-stone transition hover:bg-sunken hover:text-ink cursor-pointer"
+                  aria-label="Close new section dialog"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="mb-4 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSectionMode('tasks')}
+                  aria-pressed={sectionMode === 'tasks'}
+                  className={`rounded-xl border p-3 text-left transition cursor-pointer ${
+                    sectionMode === 'tasks' ? 'border-moss bg-moss-soft' : 'border-line bg-surface hover:border-line-strong'
+                  }`}
+                >
+                  <ListTodo size={17} className="mb-2 text-moss-deep" />
+                  <span className="block text-sm font-semibold text-ink">Tasks</span>
+                  <span className="mt-1 block text-xs leading-4 text-stone">Meeting log and task groups</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSectionMode('notes')}
+                  aria-pressed={sectionMode === 'notes'}
+                  className={`rounded-xl border p-3 text-left transition cursor-pointer ${
+                    sectionMode === 'notes' ? 'border-ai bg-ai-soft' : 'border-line bg-surface hover:border-line-strong'
+                  }`}
+                >
+                  <FileText size={17} className="mb-2 text-ai" />
+                  <span className="block text-sm font-semibold text-ink">Note</span>
+                  <span className="mt-1 block text-xs leading-4 text-stone">Focused notes and file storage</span>
+                </button>
+              </div>
+
+              <label className="mb-1.5 block font-label text-[11px] font-semibold uppercase tracking-[0.1em] text-stone" htmlFor="new-section-name">
+                Section name
+              </label>
+              <input
+                id="new-section-name"
+                autoFocus
+                value={sectionName}
+                onChange={(event) => setSectionName(event.target.value)}
+                placeholder={sectionMode === 'notes' ? 'Research notes' : 'Next sprint'}
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-stone-light focus:border-ai"
+              />
+
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSectionComposerOpen(false)}
+                  className="rounded-lg px-3 py-2 text-sm font-semibold text-stone transition hover:text-ink cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!sectionName.trim()}
+                  className="rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white transition hover:bg-moss-deep disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                >
+                  Create {sectionMode === 'notes' ? 'note' : 'section'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );

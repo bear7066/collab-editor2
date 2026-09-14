@@ -46,6 +46,14 @@ export interface BoardGroup {
   tasks: BoardTask[];
 }
 
+export interface BoardAttachment {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+}
+
 export interface BoardSection {
   id: string;
   name: string;
@@ -56,6 +64,14 @@ export interface BoardSection {
    */
   notes: string;
   groups: BoardGroup[];
+  /**
+   * 'notes' sections are meeting-log-only: no task groups, just notes and
+   * attachments. Fixed at creation. Absent on sections made before this
+   * field existed — read as 'tasks', same as any other legacy-missing field.
+   */
+  mode?: 'tasks' | 'notes';
+  /** Uploaded files' metadata; the bytes live server-side, fetched by id. */
+  attachments?: BoardAttachment[];
 }
 
 export interface BoardMeta {
