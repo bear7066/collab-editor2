@@ -430,6 +430,21 @@ describe('file attachments', () => {
     expect(await fetched.text()).toBe('hello world');
   });
 
+  test('serves a non-ASCII filename with a valid UTF-8 content disposition', async () => {
+    const deps = makeDeps();
+    const cookie = await sessionCookie();
+    await seedBoard(deps, 'plans');
+    const file = new File(['image bytes'], '行程.jpeg', { type: 'image/jpeg' });
+
+    const uploaded = await routes.files(uploadRequest('/api/files?board=plans', cookie, file), deps);
+    const { id } = (await uploaded.json()) as { id: string };
+    const fetched = await routes.files(request(`/api/files?id=${id}`, { cookie }), deps);
+
+    expect(fetched.status).toBe(200);
+    expect(fetched.headers.get('content-disposition')).toContain("filename*=UTF-8''%E8%A1%8C%E7%A8%8B.jpeg");
+    expect(await fetched.text()).toBe('image bytes');
+  });
+
   test('rejects a file over the size limit', async () => {
     const deps = makeDeps();
     const cookie = await sessionCookie();

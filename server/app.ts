@@ -36,6 +36,13 @@ export const MAX_UPDATE_BYTES = 1024 * 1024;
 
 const isSecure = (request: Request) => new URL(request.url).protocol === 'https:';
 const jsonError = (status: number, error: string) => Response.json({ error }, { status });
+const inlineContentDisposition = (filename: string) => {
+  const fallback = filename.replace(/[^\x20-\x7e]|["\\\r\n]/g, '_');
+  const encoded = encodeURIComponent(filename).replace(/[!'()*]/g, (character) =>
+    `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+  return `inline; filename="${fallback}"; filename*=UTF-8''${encoded}`;
+};
 
 const sessionCookie = (request: Request, token: string) =>
   serializeCookie(SESSION_COOKIE, token, { maxAgeSeconds: SESSION_TTL_MS / 1000, secure: isSecure(request) });
@@ -208,7 +215,7 @@ const files: Route = authenticated(async (request, deps, user) => {
     return new Response(file.data as Uint8Array<ArrayBuffer>, {
       headers: {
         'content-type': file.mimeType,
-        'content-disposition': `inline; filename="${file.filename.replace(/["\r\n]/g, '_')}"`,
+        'content-disposition': inlineContentDisposition(file.filename),
         'cache-control': 'private, max-age=31536000, immutable',
         'content-security-policy': "sandbox; default-src 'none'",
         'x-content-type-options': 'nosniff',

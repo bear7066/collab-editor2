@@ -12,10 +12,8 @@ import {
   FileText,
   ListTodo,
   Loader2,
-  Paperclip,
   Plus,
   Trash2,
-  Upload,
   Video,
   X,
 } from 'lucide-react';
@@ -33,13 +31,6 @@ import { useBoardMeta } from '../lib/useBoardMeta';
 import { useBoard } from './board/useBoard';
 import { fileUrl } from '../lib/files';
 import type { BoardTask } from './board/types';
-
-/** Human-readable size, e.g. "482 KB" or "3.1 MB". */
-const formatFileSize = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
 
 export const Board: React.FC = () => {
   const navigate = useNavigate();
@@ -59,6 +50,7 @@ export const Board: React.FC = () => {
     cycleFlag,
     cyclePendingFinish,
     deleteGroup,
+    deleteSection,
     deleteTask,
     drafts,
     editDate,
@@ -70,7 +62,6 @@ export const Board: React.FC = () => {
     openAdders,
     pendingFinish,
     provider,
-    removeAttachment,
     restoreTask,
     section,
     sectionNotes,
@@ -91,35 +82,13 @@ export const Board: React.FC = () => {
   const [sectionComposerOpen, setSectionComposerOpen] = React.useState(false);
   const [sectionName, setSectionName] = React.useState('');
   const [sectionMode, setSectionMode] = React.useState<'tasks' | 'notes'>('tasks');
-  const [isUploading, setIsUploading] = React.useState(false);
-  const [uploadError, setUploadError] = React.useState<string | null>(null);
 
-  const uploadAttachments = React.useCallback(
-    async (files: File[]) => {
-      if (files.length === 0) return;
-      setIsUploading(true);
-      setUploadError(null);
-      const failed: string[] = [];
-      for (const file of files) {
-        try {
-          await addAttachment(file);
-        } catch {
-          failed.push(file.name);
-        }
-      }
-      if (failed.length > 0) setUploadError(`Could not upload: ${failed.join(', ')}`);
-      setIsUploading(false);
-    },
-    [addAttachment]
-  );
-
-  const uploadEditorImage = React.useCallback(
+  const uploadEditorFile = React.useCallback(
     async (file: File) => {
       try {
         const uploaded = await addAttachment(file);
-        return fileUrl(uploaded.id);
+        return { url: fileUrl(uploaded.id), filename: uploaded.filename, mimeType: uploaded.mimeType };
       } catch (error) {
-        window.alert(error instanceof Error ? error.message : 'Upload failed');
         throw error;
       }
     },
@@ -459,97 +428,30 @@ export const Board: React.FC = () => {
           </button>
         </nav>
 
-        <section className="mb-5 rounded-xl border border-line bg-surface p-4">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <h2 className="font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
-              {section.mode === 'notes' ? 'Notes' : 'Meeting Log'}
-            </h2>
-            {section.mode === 'notes' && (
-              <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-line-strong bg-paper px-2.5 py-1.5 text-xs font-semibold text-ink-soft transition hover:border-moss hover:text-moss-deep">
-                <Upload size={13} />
-                {isUploading ? 'Uploading…' : 'Upload files'}
-                <input
-                  type="file"
-                  multiple
-                  disabled={isUploading}
-                  className="hidden"
-                  onChange={(event) => {
-                    const files = Array.from(event.target.files ?? []);
-                    event.target.value = '';
-                    void uploadAttachments(files);
-                  }}
-                />
-              </label>
-            )}
-          </div>
-          {sectionNotes && provider && (
-            <MilkdownProvider>
-              <MeetingLogEditor
-                key={section.id}
-                fragment={sectionNotes}
-                provider={provider}
-                onUploadFile={uploadEditorImage}
-                tall={section.mode === 'notes'}
-              />
-            </MilkdownProvider>
-          )}
-        </section>
-
         {section.mode === 'notes' && (
-          <section
-            className="mb-5 rounded-xl border border-line bg-surface p-4"
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              void uploadAttachments(Array.from(event.dataTransfer.files));
-            }}
-          >
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="flex items-center gap-2 font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
-                <Paperclip size={13} />
-                Attachments
-              </h2>
+          <section className="mb-5 rounded-xl border border-line bg-surface p-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <h2 className="font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">Notes</h2>
+              <button
+                type="button"
+                onClick={deleteSection}
+                className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-stone transition hover:bg-shu/10 hover:text-shu"
+                aria-label={`Delete section ${section.name}`}
+              >
+                <Trash2 size={13} />
+                Delete section
+              </button>
             </div>
-            <p className="mb-3 font-label text-[11px] text-stone">
-              Drop files here or choose multiple files. Any file type, up to 10 MB each.
-            </p>
-            {uploadError && <p className="mb-3 text-xs text-shu" role="alert">{uploadError}</p>}
-            {!section.attachments || section.attachments.length === 0 ? (
-              <p className="font-label text-xs text-stone">No files yet.</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {section.attachments.map((attachment) => (
-                  <li
-                    key={attachment.id}
-                    className="flex items-center gap-2 rounded-md border border-line px-3 py-2 text-xs"
-                  >
-                    <a
-                      href={fileUrl(attachment.id)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="min-w-0 flex-1 truncate font-medium text-ink-soft hover:text-ai"
-                    >
-                      {attachment.filename}
-                    </a>
-                    <span className="shrink-0 text-stone">{formatFileSize(attachment.size)}</span>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!window.confirm(`Remove "${attachment.filename}"?`)) return;
-                        try {
-                          await removeAttachment(attachment.id);
-                        } catch (error) {
-                          window.alert(error instanceof Error ? error.message : 'Delete failed');
-                        }
-                      }}
-                      className="shrink-0 text-stone transition hover:text-shu cursor-pointer"
-                      aria-label={`Remove ${attachment.filename}`}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            {sectionNotes && provider && (
+              <MilkdownProvider>
+                <MeetingLogEditor
+                  key={section.id}
+                  fragment={sectionNotes}
+                  provider={provider}
+                  onUploadFile={uploadEditorFile}
+                  tall
+                />
+              </MilkdownProvider>
             )}
           </section>
         )}
@@ -643,6 +545,33 @@ export const Board: React.FC = () => {
           </section>
 
           <aside className={`space-y-3 ${meta?.visibility === 'personal' ? 'lg:col-start-2' : ''}`}>
+            <section className="rounded-xl border border-line bg-surface p-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
+                  Meeting Log
+                </h2>
+                <button
+                  type="button"
+                  onClick={deleteSection}
+                  className="cursor-pointer rounded-md p-1.5 text-stone transition hover:bg-shu/10 hover:text-shu"
+                  title="Delete section"
+                  aria-label={`Delete section ${section.name}`}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+              {sectionNotes && provider && (
+                <MilkdownProvider>
+                  <MeetingLogEditor
+                    key={section.id}
+                    fragment={sectionNotes}
+                    provider={provider}
+                    onUploadFile={uploadEditorFile}
+                  />
+                </MilkdownProvider>
+              )}
+            </section>
+
             <section className="rounded-xl border border-line bg-surface p-4">
               <h2 className="mb-3 font-label text-[11px] font-semibold uppercase tracking-[0.12em] text-stone">
                 Groups

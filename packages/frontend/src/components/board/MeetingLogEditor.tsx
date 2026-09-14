@@ -1,8 +1,11 @@
 import React from 'react';
 import { Crepe } from '@milkdown/crepe';
-import { EditorStatus } from '@milkdown/core';
+import { EditorStatus, editorViewCtx } from '@milkdown/core';
 import { Milkdown, useEditor } from '@milkdown/react';
 import { collab, collabServiceCtx } from '@milkdown/plugin-collab';
+import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
+import { dropPoint } from '@milkdown/kit/prose/transform';
+import { Loader2, Paperclip, Upload } from 'lucide-react';
 import type * as Y from 'yjs';
 import type { HttpSyncProvider } from '../../lib/HttpSyncProvider';
 
@@ -14,13 +17,17 @@ interface MeetingLogEditorProps {
   fragment: Y.XmlFragment;
   /** Board sync provider; supplies the doc's sync signal and a local awareness. */
   provider: HttpSyncProvider;
-  /** Stores a pasted/dropped image and returns the URL Milkdown should embed. */
-  onUploadFile: (file: File) => Promise<string>;
+  /** Stores a pasted/dropped file and returns data used to embed it in the note. */
+  onUploadFile: (file: File) => Promise<{ url: string; filename: string; mimeType: string }>;
   /** Taller layout for a notes-only section, where this editor is the whole page. */
   tall?: boolean;
 }
 
 export const MeetingLogEditor: React.FC<MeetingLogEditorProps> = ({ fragment, provider, onUploadFile, tall = false }) => {
+  const crepeRef = React.useRef<Crepe | null>(null);
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+
   useEditor(
     (root) => {
       const crepe = new Crepe({
@@ -31,9 +38,14 @@ export const MeetingLogEditor: React.FC<MeetingLogEditorProps> = ({ fragment, pr
           sourceEditor: false,
         },
         featureConfigs: {
-          'image-block': { onUpload: onUploadFile, inlineOnUpload: onUploadFile, blockOnUpload: onUploadFile },
+          'image-block': {
+            onUpload: async (file) => (await onUploadFile(file)).url,
+            inlineOnUpload: async (file) => (await onUploadFile(file)).url,
+            blockOnUpload: async (file) => (await onUploadFile(file)).url,
+          },
         },
       });
+      crepeRef.current = crepe;
 
       crepe.editor.use(collab).onStatusChange((status) => {
         if (status !== EditorStatus.Created) return;
@@ -49,11 +61,116 @@ export const MeetingLogEditor: React.FC<MeetingLogEditorProps> = ({ fragment, pr
     [fragment, provider, onUploadFile]
   );
 
+  const insertFiles = React.useCallback(
+    async (files: File[], coordinates?: { left: number; top: number }) => {
+      if (files.length === 0 || !crepeRef.current) return;
+
+      let requestedPosition: number | null = null;
+      crepeRef.current.editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        requestedPosition = coordinates
+          ? view.posAtCoords(coordinates)?.pos ?? view.state.selection.from
+          : view.state.selection.from;
+      });
+
+      setIsUploading(true);
+      setUploadError(null);
+      const uploaded: Array<{ url: string; filename: string; mimeType: string }> = [];
+      const failed: string[] = [];
+      for (const file of files) {
+        try {
+          uploaded.push(await onUploadFile(file));
+        } catch {
+          failed.push(file.name);
+        }
+      }
+
+      if (uploaded.length > 0 && crepeRef.current) {
+        crepeRef.current.editor.action((ctx) => {
+          const view = ctx.get(editorViewCtx);
+          const { schema } = view.state;
+          const nodes: ProseNode[] = [];
+
+          for (const file of uploaded) {
+            if (file.mimeType.startsWith('image/')) {
+              const imageType = schema.nodes['image-block'] ?? schema.nodes.image;
+              const image = imageType?.createAndFill({ src: file.url, alt: file.filename, title: file.filename });
+              if (image) nodes.push(image);
+              continue;
+            }
+
+            const paragraph = schema.nodes.paragraph;
+            const link = schema.marks.link;
+            if (!paragraph || !link) continue;
+            nodes.push(
+              paragraph.create(null, [
+                schema.text('\u{1F4CE} '),
+                schema.text(file.filename, [link.create({ href: file.url, title: file.filename })]),
+              ])
+            );
+          }
+
+          if (nodes.length === 0) return;
+          const slice = new Slice(Fragment.fromArray(nodes), 0, 0);
+          const desired = Math.min(requestedPosition ?? view.state.doc.content.size, view.state.doc.content.size);
+          const insertAt = dropPoint(view.state.doc, desired, slice) ?? view.state.doc.content.size;
+          view.dispatch(view.state.tr.replaceRange(insertAt, insertAt, slice).scrollIntoView());
+          view.focus();
+        });
+      }
+
+      if (failed.length > 0) setUploadError(`Could not upload: ${failed.join(', ')}`);
+      setIsUploading(false);
+    },
+    [onUploadFile]
+  );
+
   return (
     <div
-      className={`board-meeting-log ${tall ? 'h-[70vh] min-h-[24rem]' : 'h-44'} overflow-y-auto rounded-lg border border-line bg-paper px-4 py-3 transition focus-within:border-ai`}
+      className={`board-meeting-log ${tall ? 'h-[70vh] min-h-[24rem]' : 'h-44'} flex flex-col overflow-hidden rounded-lg border border-line bg-paper transition focus-within:border-ai`}
+      onDragOver={tall ? (event) => event.preventDefault() : undefined}
+      onDropCapture={
+        tall
+          ? (event) => {
+              if (event.dataTransfer.files.length === 0) return;
+              event.preventDefault();
+              event.stopPropagation();
+              void insertFiles(Array.from(event.dataTransfer.files), { left: event.clientX, top: event.clientY });
+            }
+          : undefined
+      }
     >
-      <Milkdown />
+      {tall && (
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-3 py-2">
+          <p className="flex items-center gap-1.5 font-label text-[11px] text-stone">
+            <Paperclip size={12} />
+            Drop images or files directly into this note
+          </p>
+          <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-line-strong bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink-soft transition hover:border-moss hover:text-moss-deep">
+            {isUploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+            {isUploading ? 'Uploading\u2026' : 'Add files'}
+            <input
+              type="file"
+              multiple
+              disabled={isUploading}
+              className="hidden"
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? []);
+                event.target.value = '';
+                void insertFiles(files);
+              }}
+            />
+          </label>
+        </div>
+      )}
+      {uploadError && (
+        <p className="shrink-0 border-b border-line px-3 py-2 text-xs text-shu" role="alert">
+          {uploadError}
+        </p>
+      )}
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+        <Milkdown />
+      </div>
     </div>
   );
 };
